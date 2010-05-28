@@ -1,0 +1,1494 @@
+package Graph::Chart;
+
+###########################################################
+# RPN package with DICT
+# Gnu GPL2 license
+#
+# Fabrice Dulaunoy <fabrice@dulaunoy.com>
+###########################################################
+# ChangeLog:
+#
+###########################################################
+
+=head1 SYNOPSIS
+
+=over 3
+
+B<Graph::Chart>
+
+	A Wrapper around GD to easyly graph chart
+
+=back
+
+=cut
+
+use strict;
+
+use Carp;
+use Data::Dumper;
+
+use Clone qw(clone);
+use Compress::Zlib;
+use Data::Serializer;
+use fields qw{ size type  };
+use GD;
+use GD::Polyline;
+use List::Util qw[min max sum];
+
+use vars qw( $VERSION);
+
+use constant PI => 4 * atan2( 1, 1 );
+use constant NEPER => 2.718281828459045;
+use constant LOG10 => 2.30258509299405;
+
+$VERSION = '0.52';
+
+###########################################################################
+
+###########################################################################
+### 			class creator					###
+###########################################################################
+
+=head1 METHODS
+	
+	OO interface
+
+=head2 new
+
+=over
+
+Create a new Chart 
+
+=over
+
+my $graph = Graph::Chart->new( \%options );
+
+  %options could be defined like this:
+
+
+
+  size => [ W, H ] 							# the size ( Width, Height ) in pixel of the real graph ( without border ) 
+  bg_color => '0xfffff0'						#  an ARRAY with all possible section
+  frame  => { color => '0xff00ff', thickness => 1 },			# an optional frame around the real chart
+  border => [ 150,  80,            100,      100 ],			# extra space around the graph in pixel [ left side, right side , top side, bottom side ]"
+  
+      grid   => {							# a grid over the graph
+	  debord => [ 5, 20, 10, 30 ],					# some extension of the grid size ( same order as border ) B<test>
+	  x      => {							# vertical grid
+	    color  => '0xff00ff'					# color of the grid ( hex HTML value )
+	    number => 5,						# number of grid division
+           thickness => 1,						# size of the division's line ( default = 1 )
+           
+	    label  => {							# an optional label on the left side
+		font  => '/usr/lib/cinelerra/fonts/trebucbi.ttf',	# a TrueType font to use
+		color => '0xff0000',					# the color of the label
+		size  => 10,						# the size of the font
+		text  => [ 'toto', undef, 'truc', 'bazar', 122 ],	# the text to render ( a undef element is not ploted, this allow to skip some label )
+		space => 80,						# an extra space between the division and the text
+		align    => 'right',					# align the text on the right ( = aligned on the division )
+		rotation => 30,						# a rotation of the text in degree
+		kerning_correction => 0.85,				# a kerning correcting to correct align of text when rotated ( default 0.91 ) 
+		surround => { color => '0x0000ff' , thickness => 1 },	# create a frame around the text with the specified color and thickness
+
+	    },
+	    
+	    label2 => {							# an optional label on the right side
+		font  => '/usr/lib/cinelerra/fonts/lucon.ttf',		# a TrueType font to use
+		color => '0xff0000',					# the color of the label
+		size  => 10,						# the size of the font
+		text  => [ 'toto', undef, 'truc', 'bazar', 122 ],,	# the text to render ( a undef element is not ploted, this allow to skip some label )
+		space => 50,						# an extra space between the division and the text
+		align => 'right',					# align the text on the right ( not really useful )
+		rotation => -30,					# an rotation of the text in degree
+		kerning_correction => 0.85,				# a kerning correcting to correct align of text when rotated ( default 0.91 ) 
+		surround => { color => '0x0000ff' , thickness => 1 },	# create a frame around the text with the specified color and thickness
+
+	    },
+	},	  	"
+       y => {								# horizontal grid
+           color     => '0x00fff0','					# color of the grid ( hex HTML value )
+           number    => 8,						# number of grid division
+           thickness => 1,						# size of the division's line ( default = 1 )
+           label     => {						# an optional label on the bottom side
+		font  => '/usr/lib/cinelerra/fonts/trebuc.ttf',		# a TrueType font to use
+		color => '0xff0000',',					# the color of the label
+		size  => 12,						# the size of the font
+		text  => [ 100, undef, '20', undef, 1585, undef, 555 ],	# the text to render ( a undef element is not ploted, this allow to skip some label )
+# 		space => 10,						# an extra space between the division and the text
+		rotation => 45,						# an rotation of the text in degree
+		kerning_correction => 0.85,				# a kerning correcting to correct align of text when rotated ( default 0.91 ) 
+		surround => { color => '0x0000ff' , thickness => 1 },	# create a frame around the text with the specified color and thickness
+           },
+#	     label2     => {						# an optional label on the top side
+#		font  => '/usr/lib/cinelerra/fonts/trebuc.ttf',	# a TrueType font to use
+		color => '0xff0000',',					# the color of the label
+		size  => 12,						# the size of the font
+		text  => [ 100, undef, '20', undef, 1585, undef, 555 ],	# the text to render ( a undef element is not ploted, this allow to skip some label )
+# 		space => 10,						# an extra space between the division and the text
+		rotation => 45,						# an rotation of the text in degree
+		kerning_correction => 0.85,				# a kerning correcting to correct align of text when rotated ( default 0.91 ) 
+		surround => { color => '0x0000ff' , thickness => 1 },	# create a frame around the text with the specified color and thickness
+#             }
+         }
+
+
+	reticle => { 							# when the Chart's type is of any circular shape, create polar division 
+	debord => 30,							# the extra debord of the division
+	color => '0xff0000',						# the color of the division
+	number => 10,							# the number of division
+	label_middle => {						# the label to write between 2 division
+		font  => '/usr/lib/cinelerra/fonts/lucon.ttf',		# a TrueType font to use
+		kerning_correction => 0.85,				# a kerning correcting to correct align of text when rotated ( default 0.91 ) 
+		color => '0xff0000',					# the text color
+                size  => 10,						# the font size to use
+#		space => 10,						# an extra space between the division and the text
+#		rotate => 'follow',					# rotate the text to be following the division direction
+		rotate => 'perpendicular',				# rotate the the to be perpendicular to the division
+									# if missing write the text without rotation
+                text => [700031220,45,90,135,180,225,270,31500 , 1 ,2], #  the text to render ( a undef element is not ploted, this allow to skip some label )
+		},
+#	label => {							# the label to write at the division
+		font  => '/usr/lib/cinelerra/fonts/lucon.ttf',		# a TrueType font to use
+		kerning_correction => 0.85,				# a kerning correcting to correct align of text when rotated ( default 0.91 ) 
+		color => '0xff0000',					# the text color
+                size  => 10,						# the font size to use
+#		space => 10,						# an extra space between the division and the text
+#		rotate => 'follow',					# rotate the text to be following the division direction
+		rotate => 'perpendicular',				# rotate the the to be perpendicular to the division
+									# if missing write the text without rotation
+                text => [700031220,45,90,135,180,225,270,31500 , 1 ,2], #  the text to render ( a undef element is not ploted, this allow to skip some label )
+#		},	
+
+	overlay=> {							# add an overlay to the graph (useful to show an alert period )
+	  layer => 10, 							# the layer where the data is plotted ( the lowest number is the deepest layer ) If missing, the layer is created by call order of the method data 
+	  set   => \@alarm,						# a array ref with the data ( the number of dot plotted is the number  W provided by the size parameter/method
+	  type  => 'pie',						# the type of graph ( dot, line, bar, up_dot, up_bar, up_line , down_dot,down_line, down_bar, pie, target, radial )
+	  color => '0xFFD2D2',						# color of the plotted element
+	  type => 'pie',						# if missing normal overlay are used, if present use a polar structure ( data are in the range of 0 to 360 ° ) 
+	  merge  => 1,							# if present and not = 0 all overlay are overwrited by the overlay from a higer layer
+	  opacity => 100,						# when merge is missing, the overlay % of opacity copied on the chart
+	  debord => 50,							# the debord of the overlay. if missing use the full graph height and in polar ( pie ) use the smallest vertical border ( top or bottom ) 
+	  },
+   },
+},
+
+all these parameters are optional except the size
+
+my $a  = B<Graph::Chart>->new( size => [ 800,400 ] 
+);	
+
+=back
+
+=back
+
+=cut
+
+sub new
+{
+    my ( $class ) = shift;
+    no strict "refs";
+    my $fields_ref = \%{ "${class}::FIELDS" };
+    my $self       = $fields_ref;
+    $self->{ size } = { @_ }->{ size };
+
+    $self->{ bg_color } = _re_color( { @_ }->{ bg_color }, 'ffffffff' );
+    if ( exists { @_ }->{ frame } )
+    {
+        $self->{ frame } = { @_ }->{ frame };
+        if ( exists { @_ }->{ frame }{ color } )
+        {
+            $self->{ frame }{ color } = _re_color( { @_ }->{ frame }{ color }, '00000000' );
+        }
+        $self->{ frame }{ thickness } = { @_ }->{ frame }{ thickness } || 1;
+    }
+
+    $self->{ border } = { @_ }->{ border } || [ 0, 0, 0, 0 ];
+    if ( exists { @_ }->{ grid } )
+    {
+        $self->{ grid } = { @_ }->{ grid };
+        unless ( exists $self->{ grid }->{ debord } )
+        {
+            $self->{ grid }->{ debord } = [ 0, 0, 0, 0 ];
+        }
+    }
+    if ( exists { @_ }->{ reticle } )
+    {
+        $self->{ reticle } = { @_ }->{ reticle };
+        if ( !exists { @_ }->{ reticle }->{ debord } )
+        {
+            $self->{ reticle }{ debord } = 0;
+        }
+        if ( !exists $self->{ reticle }{ number } )
+        {
+            $self->{ reticle }->{ number } = 2;
+        }
+    }
+
+    if ( exists { @_ }->{ overlay } )
+    {
+        if ( exists { @_ }->{ overlay }{ layer } )
+        {
+            $self->{ overlay }[ { @_ }->{ overlay }{ layer } ] = clone( { @_ }->{ overlay } );
+        }
+        else
+        {
+            push @{ $self->{ overlay } }, clone( { @_ }->{ overlay } );
+        }
+    }
+
+    bless( $self, $class );
+    return $self;
+}
+
+
+sub _re_color
+{
+    my $col = shift;
+    my $def = shift;
+    if ( $col =~ /^(0x)([[:xdigit:]]{6})$/ )
+    {
+        $col = $2 . '00';
+    }
+    elsif ( $col =~ /^(0x)([[:xdigit:]]{8})$/ )
+    {
+        $col = $2;
+    }
+    else
+    {
+        $col = $def;
+    }
+    return $col;
+}
+###########################################################################
+
+###########################################################################
+### 			method to set the grid  			###
+###########################################################################
+
+=head2 grid
+
+	set the grid 
+
+  use the same parameter as the new()
+  if the option is already present, overwrite this option
+
+=cut	
+
+sub grid
+{
+    my $self   = shift;
+    my $object = shift;
+    if ( $object )
+    {
+        foreach my $item ( keys %{ $object } )
+        {
+            if ( ref( $object->{ $item } ) eq 'HASH' )
+            {
+                foreach my $sub_item ( %{ $object->{ $item } } )
+                {
+                    $self->{ grid }{ $item }{ $sub_item } = $object->{ $item }{ $sub_item };
+                }
+            }
+            else
+            {
+                $self->{ grid }{ $item } = $object->{ $item };
+            }
+            unless ( exists $self->{ grid }->{ debord } )
+            {
+                $self->{ grid }->{ debord } = [ 0, 0, 0, 0 ];
+            }
+        }
+    }
+    return $self->{ grid };
+}
+
+###########################################################################
+
+###########################################################################
+### 			method to set the reticle   			###
+###########################################################################
+
+=head2 reticle
+
+	set the reticle 
+	the reticle are the division when using a polar chart ( pie, target .... )
+
+  use the same parameter as the new()
+  if the option is already present, overwrite this option
+
+=cut
+
+sub reticle
+{
+    my $self   = shift;
+    my $object = shift;
+    if ( $object )
+    {
+        foreach my $item ( keys %{ $object } )
+        {
+            if ( ref( $object->{ $item } ) eq 'HASH' )
+            {
+                foreach my $sub_item ( %{ $object->{ $item } } )
+                {
+                    $self->{ reticle }{ $item }{ $sub_item } = $object->{ $item }{ $sub_item };
+                }
+            }
+            else
+            {
+                $self->{ reticle }{ $item } = $object->{ $item };
+            }
+            unless ( exists $self->{ reticle }->{ debord } )
+            {
+                $self->{ reticle }->{ debord } = 0;
+            }
+        }
+    }
+    return $self->{ reticle };
+}
+
+###########################################################################
+
+###########################################################################
+### 			method to set the frame  			###
+###########################################################################
+
+=head2 frame
+
+	set the frame 
+
+  use the same parameter as the new()
+  if the option is already present, overwrite this option
+
+=cut
+
+sub frame
+{
+    my $self   = shift;
+    my $object = shift;
+    if ( $object )
+    {
+        $self->{ frame } = $object;
+        foreach my $item ( keys %{ $object } )
+        {
+            if ( ref( $object->{ $item } ) eq 'HASH' )
+            {
+                foreach my $sub_item ( %{ $object->{ $item } } )
+                {
+                    $self->{ frame }{ $item }{ $sub_item } = $object->{ $item }{ $sub_item };
+                }
+            }
+            else
+            {
+                $self->{ frame }{ $item } = $object->{ $item };
+            }
+        }
+        if ( exists $object->{ color } )
+        {
+            $self->{ frame }{ color } = _re_color( $object->{ color }, '00000000' );
+        }
+    }
+    return $self->{ frame };
+}
+
+###########################################################################
+
+###########################################################################
+### 			method to set the size  			###
+###########################################################################
+
+=head2 size
+
+	set the size ( this is the only mandatory option ) 
+
+  use the same parameter as the new()
+  if the option is already present, overwrite this option
+
+=cut
+
+sub size
+{
+    my $self   = shift;
+    my $object = shift;
+    if ( $object )
+    {
+        $self->{ size } = $object;
+    }
+    return $self->{ size };
+}
+
+###########################################################################
+
+###########################################################################
+### 			method to set the bg_color  			###
+###########################################################################
+
+=head2 bg_color
+
+	set the bg_color
+	set the background color of the graph
+
+  use the same parameter as the new()
+  if the option is already present, overwrite this option
+
+=cut
+
+sub bg_color
+{
+    my $self   = shift;
+    my $object = shift;
+
+    if ( $object )
+    {
+        $self->{ bg_color } = $object;
+    }
+    return $self->{ bg_color };
+}
+###########################################################################
+
+###########################################################################
+### 			method to provide the data to plot  		###
+###########################################################################
+
+=head2 data
+
+	set the data to be plotted 
+
+
+  $graph->data(
+    {
+	  layer => 10, 			# the layer where the data is plotted ( the lowest number is the deepest layer ) If missing, the layer is created by call order of the method data 
+	  set   => \@dot,		# a array ref with the data ( the number of dot plotted is the number  W provided by the size parameter/method
+	  type  => 'pie',		# the type of graph ( dot, line, bar, up_dot, up_bar, up_line , down_dot,down_line, down_bar, pie, target, radial )
+	  bar_size => 1,		# if any type of bar used, this is an extra width of the bar created, if not defined, the bar width= 1 if set to 1 the size of the bar became 3 ( 1 before, 1 for the bar and one after )
+	  color => '0x0000ff',		# color of the plotted element
+	  thickness => 1,		# for any type of dot and line, the thiskness to used ( default = 1 )
+	  scale => 1.1,			# a scale on the value provided ( a number scale all the data value using the maximal value of the set time this number, 1.1 allow to always have a small extar gap and never reach to extremity of the graph area, 'auto' resize the graph using the maximal value   ) 
+   }
+);
+=cut
+
+sub data
+{
+    my $self   = shift;
+    my $object = shift;
+    if ( $object )
+    {
+        if ( exists $object->{ layer } )
+        {
+            $self->{ data }[ $object->{ layer } ] = clone( $object );
+        }
+        else
+        {
+            push @{ $self->{ data } }, clone( $object );
+        }
+    }
+    return $self->{ data };
+}
+
+###########################################################################
+
+###########################################################################
+### 		method to put an avrlay on top of the graph  		###
+###########################################################################
+
+=head2 overlay
+
+	method to put an avrlay on top of the graph ( to show alarm period ... )
+
+
+  use the same parameter as the new()
+  if the option is already present, overwrite this option
+
+=cut
+
+sub overlay
+{
+    my $self   = shift;
+    my $object = shift;
+    if ( $object )
+    {
+        if ( exists $object->{ layer } )
+        {
+            $self->{ overlay }[ $object->{ layer } ] = clone( $object );
+        }
+        else
+        {
+            push @{ $self->{ overlay } }, clone( $object );
+        }
+    }
+    return $self->{ overlay };
+}
+
+###########################################################################
+
+###########################################################################
+### 		method to add a png data TAG ( not standard )  		###
+###########################################################################
+
+=head2 png_zEXt
+
+	method to add a png data TAG 
+	This tag is not a PNG standard, but allowed by the RFC
+	see code in img_info.pl 
+	
+	my $png_out1 =$graph->png_zEXt( { eerer => 1, ggg => 'zed' } );
+	this overwrite the png TAG data with the new value and return the new image
+
+=cut
+
+sub png_zEXt
+{
+    my $self   = shift;
+    my $object = shift;
+
+    my $obj = Data::Serializer->new( 'compress' => 1 );
+    my $tag = $obj->serialize( $object );
+
+    my $png_out;
+    my $ihdr;       # IHDR chunk
+    my %tEXt;       # tEXt chunks to insert
+    my $sig;        # PNG signature
+    my $pos;        # position in $png
+    my $pngsize;    # Total size of png
+    my $text;       # 'string' of all tEXt chunks with CRC, etc.
+    my $tchunk;     # content of text chunk
+    $tEXt{ data } = $tag;
+
+#     my $x = deflateInit();
+
+    ( $sig, $ihdr, $png_out ) = unpack "a8 a25 a*", $self->{ img };
+
+    $png_out =~ /(.*)(....PLTE.*)/s;
+
+    my $old_tag = $1;
+    my $end_png = $2;
+
+    foreach my $keyword ( keys %tEXt )
+    {
+
+#*    A tEXt chunk contains:
+#*
+#*       Keyword:            1-79 bytes (character string)
+#*       Null separator:     1 byte
+#*       Compression method: 1 byte
+#*       Compressed text:    n bytes
+        my $tbuffer;
+        $tbuffer = $tEXt{ $keyword };
+        $tbuffer =~ s/\\([tnrfbae])/control_char($1)/eg;
+        $tchunk = sprintf "%s%c%s", $keyword, 0, $tbuffer;
+        $text .= pack "N A* N", ( length( $tchunk ), 'tEXt' . $tchunk, &crc32( 'tEXt' . $tchunk ) );
+        $pngsize += length( $tchunk ) + 8;
+    }
+#     $png_out = $sig . $ihdr . $text .$png_out ;
+    $png_out = $sig . $ihdr . $text . $end_png;
+    $self->{ img } = $png_out;
+
+    return $self->{ img };
+
+}
+
+###########################################################################
+
+###########################################################################
+### 			method to render the Chart 			###
+###########################################################################
+
+=head2 render
+
+	render the chart and return a png image
+
+
+  my $img = $graph->render( \%tag )
+   
+   
+  the hash ref contain data to put in the PNG meta tag.
+  the tools img_info.pl allow to see the result.
+  the tag is serialized in the png
+  
+  the returned value could be writted in a file like this:
+  my $png_out = $graph->render();
+  
+    open( my $IMG, '>', $file ) or die $!;
+    binmode $IMG;
+    print $IMG $png_out;
+    close $IMG;
+);
+
+=cut
+
+sub render
+{
+    my $self   = shift;
+    my $object = shift;
+
+    my $frame = new GD::Image(
+        $self->{ size }->[0] + $self->{ border }->[0] + $self->{ border }->[1],
+        $self->{ size }->[1] + $self->{ border }->[2] + $self->{ border }->[3]
+    );
+    my ( $r, $g, $b, $a ) = unpack "a2 a2 a2 a2 ", $self->{ bg_color };
+    my $bg_color = $frame->colorAllocateAlpha( hex $r, hex $g, hex $b, hex $a );
+
+    $frame->transparent( $bg_color );
+    $frame->interlaced( 'true' );
+
+### plot overlay
+    if ( exists $self->{ overlay } )
+    {
+        foreach my $layer ( @{ $self->{ overlay } } )
+        {
+            my $col_graph;
+            my $frame_over;
+            if ( exists $layer->{ merge } && $layer->{ merge } )
+            {
+                ( $r, $g, $b, $a ) = unpack "a2 a2 a2 a2 ",
+                  _re_color( $layer->{ color }, '00000000' );
+                $col_graph = $frame->colorAllocateAlpha( hex $r, hex $g, hex $b, hex $a );
+            }
+            else
+            {
+
+                $frame_over = new GD::Image(
+                    $self->{ size }->[0] + $self->{ border }->[0] + $self->{ border }->[1],
+                    $self->{ size }->[1] + $self->{ border }->[2] + $self->{ border }->[3]
+                );
+                my ( $r, $g, $b, $a ) = unpack "a2 a2 a2 a2 ", $self->{ bg_color };
+                my $bg_color_over =
+                  $frame_over->colorAllocateAlpha( hex $r, hex $g, hex $b, hex $a );
+                $frame_over->transparent( $bg_color_over );
+                $frame_over->interlaced( 'true' );
+                $frame_over->setThickness( 1 );
+                ( $r, $g, $b, $a ) = unpack "a2 a2 a2 a2 ",
+                  _re_color( $layer->{ color }, '00000000' );
+                $col_graph = $frame_over->colorAllocateAlpha( hex $r, hex $g, hex $b, hex $a );
+            }
+            my $extra =
+                $self->{ border }->[2] > $self->{ border }->[3]
+              ? $self->{ border }->[3]
+              : $self->{ border }->[2];
+            if ( exists $layer->{ debord } )
+            {
+                $extra = $layer->{ debord };
+            }
+            my $dot = -1;
+            my $last_pie;
+            foreach my $raw_val ( @{ $layer->{ set } } )
+            {
+                $dot++;
+                next if ( !defined $raw_val || !$raw_val );
+                my $plot_dot = $self->{ border }->[0] + $dot;
+                my $plot_val =
+                  $self->{ border }->[2] + $self->{ border }->[3] + $self->{ size }->[1];
+
+                if ( exists $layer->{ merge } && $layer->{ merge } )
+                {
+                    if ( exists $layer->{ type } && $layer->{ type } eq 'pie' )
+                    {
+                        $frame->filledArc(
+                            $self->{ size }->[0] / 2 + $self->{ border }->[0],
+                            ( $self->{ size }->[1] / 2 ) + $self->{ border }->[2],
+                            ( $self->{ size }->[1] + ( 2 * $extra ) ),
+                            ( $self->{ size }->[1] + ( 2 * $extra ) ),
+                            $dot,
+                            $dot + 1,
+                            $col_graph,
+                            gdEdged
+                        );
+                        $last_pie = $dot;
+                    }
+                    else
+                    {
+                        $frame->line( $plot_dot, 0, $plot_dot, $plot_val, $col_graph );
+                    }
+                }
+                else
+                {
+                    if ( exists $layer->{ type } && $layer->{ type } eq 'pie' )
+                    {
+                        $frame_over->filledArc(
+                            $self->{ size }->[0] / 2 + $self->{ border }->[0],
+                            ( $self->{ size }->[1] / 2 ) + $self->{ border }->[2],
+                            ( $self->{ size }->[1] + ( 2 * $extra ) ),
+                            ( $self->{ size }->[1] + ( 2 * $extra ) ),
+                            $dot,
+                            $dot + 1,
+                            $col_graph,
+                            gdEdged
+                        );
+#                         $last_pie = $dot;
+
+                    }
+                    else
+                    {
+                        $frame_over->line( $plot_dot, 0, $plot_dot, $plot_val, $col_graph );
+                    }
+                }
+            }
+
+            if ( exists $layer->{ merge } && $layer->{ merge } )
+            {
+            }
+            else
+            {
+                my $trans = $layer->{ opacity } || 20;
+                $frame->copyMerge(
+                    $frame_over,
+                    0,
+                    0,
+                    0,
+                    0,
+                    $self->{ size }->[0] + $self->{ border }->[0] + $self->{ border }->[1],
+                    $self->{ size }->[1] + $self->{ border }->[2] + $self->{ border }->[3],
+                    $trans
+                );
+            }
+
+        }
+    }
+### end plot overlay
+
+### plot data
+    if ( exists $self->{ data } )
+    {
+        my $last_pie;
+        foreach my $layer ( @{ $self->{ data } } )
+        {
+            my $bar_size = $layer->{ bar_size };
+
+            my $max;
+            my $scale     = 1;
+            my $pre_scale = 1;
+            my $bar_size  = $layer->{ bar_size } || 1;
+            if ( exists $layer->{ scale } || $layer->{ scale } eq 'auto' )
+            {
+                if ( $layer->{ scale } =~ /^\d*\.*\d*$/ )
+                {
+                    $pre_scale = $layer->{ scale };
+                }
+                $max = max( @{ $layer->{ set } } );
+                $scale = $self->{ size }->[1] / ( $pre_scale * $max );
+            }
+            if ( $layer->{ type } =~ /^(up_|down_)/ )
+            {
+                $scale /= 2;
+            }
+            my $thickness = $layer->{ thickness } || 1;
+            $frame->setThickness( $thickness );
+            ( $r, $g, $b, $a ) = unpack "a2 a2 a2 a2 ", _re_color( $layer->{ color }, '00000000' );
+            my $col_graph = $frame->colorAllocateAlpha( hex $r, hex $g, hex $b, hex $a );
+            if ( !exists $layer->{ type } || $layer->{ type } =~ /line|dot|bar/ )
+            {
+                my $poly = new GD::Polygon;
+
+                my $dot = -1;
+                foreach my $raw_val ( @{ $layer->{ set } } )
+                {
+                    $dot++;
+                    next if ( !defined $raw_val );
+                    my $val = ( $scale * $raw_val ) + $layer->{ offset };
+                    $val = $val > $self->{ size }->[1] ? $self->{ size }->[1] : $val;
+
+                    my $plot_dot = $self->{ border }->[0] + $dot;
+
+                    my $plot_val = $self->{ border }->[2] + $self->{ size }->[1] - $val;
+                    my $y_size   = $self->{ size }->[1];
+                    if ( $layer->{ type } =~ /^up_/ )
+                    {
+                        $y_size /= 2;
+                        $plot_val = $self->{ border }->[2] + $y_size - $val;
+                    }
+                    if ( $layer->{ type } =~ /^down_/ )
+                    {
+                        $y_size /= 2;
+                        $plot_val = $self->{ border }->[2] + $y_size + $val;
+                    }
+                    $poly->addPt( $plot_dot, $plot_val ) if ( $layer->{ type } =~ /line/ );
+                    $frame->filledEllipse( $plot_dot, $plot_val, $thickness, $thickness,
+                        $col_graph )
+                      if ( $layer->{ type } =~ /dot/ );
+
+                    $frame->filledRectangle(
+                        $plot_dot - $bar_size,
+                        $self->{ border }->[2] + $y_size - $layer->{ offset },
+                        $plot_dot + $bar_size,
+                        $plot_val, $col_graph
+                    ) if ( $layer->{ type } =~ /bar/ );
+                }
+                $frame->unclosedPolygon( $poly, $col_graph ) if ( $layer->{ type } =~ /line/ );
+            }
+            elsif ( $layer->{ type } eq 'pie' )
+            {
+                my $img_width    = $self->{ size }->[0];
+                my $img_height   = $self->{ size }->[1];
+                my $graph_offset = 0;
+                my $alarm_border = 0;
+                my $target_value_graph;
+                my $scale = 1;
+
+                my $bar_size = $layer->{ bar_size } || 1;
+                if ( exists $layer->{ scale } )
+                {
+                    if ( $layer->{ scale } =~ /^\d*\.*\d*$/ )
+                    {
+                        $scale = $layer->{ scale };
+                    }
+                }
+                $frame->filledArc(
+                    $img_width / 2 + $self->{ border }->[0],
+                    ( $img_height / 2 ) + $self->{ border }->[2],
+                    ( $img_height ) * $scale,
+                    ( $img_height ) * $scale,
+                    $last_pie,
+                    $layer->{ set }[-1] + $last_pie,
+                    $col_graph,
+                    gdEdged
+                );
+                $last_pie = $layer->{ set }[-1],;
+            }
+            elsif ( $layer->{ type } eq 'target' )
+            {
+                my $img_width    = $self->{ size }->[0];
+                my $img_height   = $self->{ size }->[1];
+                my $graph_offset = 0;
+                my $alarm_border = 0;
+                my $target_value_graph;
+                my $scale = 1;
+
+                my $bar_size = $layer->{ bar_size } || 1;
+                if ( exists $layer->{ scale } )
+                {
+                    if ( $layer->{ scale } =~ /^\d*\.*\d*$/ )
+                    {
+                        $scale = $layer->{ scale };
+                    }
+                }
+                $frame->filledArc(
+                    $img_width / 2 + $self->{ border }->[0],
+                    ( $img_height / 2 ) + $self->{ border }->[2],
+                    ( $img_height ) * $scale,
+                    ( $img_height ) * $scale,
+                    0,
+                    $layer->{ set }[-1],
+                    $col_graph,
+                    gdEdged
+                );
+            }
+            elsif ( $layer->{ type } eq 'radial' )
+            {
+                my $img_width    = $self->{ size }->[0];
+                my $img_height   = $self->{ size }->[1];
+                my $graph_offset = 0;
+                my $alarm_border = 0;
+                my $target_value_graph;
+                my $tot = $self->{ size }->[1];
+                my $max;
+                my $scale     = 1;
+                my $pre_scale = 1;
+                my $bar_size  = $layer->{ bar_size } || 1;
+
+                if ( exists $layer->{ scale } || $layer->{ scale } eq 'auto' )
+                {
+                    if ( $layer->{ scale } =~ /^\d*\.*\d*$/ )
+                    {
+                        $pre_scale = $layer->{ scale };
+                    }
+                    $max = max( @{ $layer->{ set } } );
+                    $scale = $self->{ size }->[1] / ( $pre_scale * $max );
+                }
+                my $dot = -1;
+                foreach my $raw_val ( @{ $layer->{ set } } )
+                {
+                    my $plot_val = $raw_val * $scale;
+                    $dot++;
+                    $frame->filledArc(
+                        $img_width / 2 + $self->{ border }->[0],
+                        ( $img_height / 2 ) + $self->{ border }->[2],
+                        ( $plot_val ),
+                        ( $plot_val ),
+                        $dot,
+                        $dot + 1,
+                        $col_graph,
+                        gdEdged
+                    );
+                }
+            }
+        }
+    }
+### end plot
+
+### plot grid + label
+    if ( exists $self->{ grid } )
+    {
+        if ( exists $self->{ grid }{ y } )
+        {
+            $frame->setThickness( $self->{ grid }{ y }{ thickness } );
+            ( $r, $g, $b, $a ) = unpack "a2 a2 a2 a2 ",
+              _re_color( $self->{ grid }{ y }{ color }, 'ffffffff' );
+            my $grid_color = $frame->colorAllocateAlpha( hex $r, hex $g, hex $b, hex $a );
+            for my $nbr ( 1 .. ( $self->{ grid }{ y }{ number } ) )
+            {
+                my $val =
+                  ( $nbr - 1 ) *
+                  ( int( ( $self->{ size }->[0] ) / ( $self->{ grid }{ y }{ number } - 1 ) ) );
+                $frame->line(
+                    $self->{ border }->[0] + $val,
+                    $self->{ border }->[2] - $self->{ grid }{ debord }->[2],
+                    $self->{ border }->[0] + $val,
+                    $self->{ size }->[1] + $self->{ border }->[2] + $self->{ grid }{ debord }->[3],
+                    $grid_color
+                );
+                if ( defined $self->{ grid }{ y }{ label }{ text }->[ $nbr - 1 ] )
+                {
+                    my $text_color = $grid_color;
+                    if ( exists $self->{ grid }{ y }{ label }{ color } )
+                    {
+                        ( $r, $g, $b, $a ) = unpack "a2 a2 a2 a2 ",
+                          _re_color( $self->{ grid }{ y }{ label }{ color }, 'ffffffff' );
+                        $text_color = $frame->colorAllocateAlpha( hex $r, hex $g, hex $b, hex $a );
+                    }
+                    my $radian  = ( $self->{ grid }{ y }{ label }{ rotation } / 180 ) * PI || 0;
+                    my $kerning = $self->{ grid }{ y }{ label }{ kerning_correction }      || 0.91;
+                    my $cos     = cos( $radian );
+                    my $sin     = sin( $radian );
+                    my $Xoff;
+                    my $Yoff;
+                    my $len = length( $self->{ grid }{ y }{ label }{ text }->[ $nbr - 1 ] );
+
+                    if ( $self->{ grid }{ y }{ label }{ rotation } )
+                    {
+                        $Xoff =
+                          ( $cos * ( $self->{ grid }{ y }{ label }{ size } ) ) -
+                          ( $cos * ( ( $len**$kerning ) * $self->{ grid }{ y }{ label }{ size } ) );
+
+                        $Yoff =
+                          ( $sin * ( ( $len**$kerning ) * $self->{ grid }{ y }{ label }{ size } ) )
+                          + ( $sin * $self->{ grid }{ y }{ label }{ size } );
+                    }
+                    else
+                    {
+                        $Xoff = -( ( $len**$kerning ) * $self->{ grid }{ y }{ label }{ size } / 2 );
+                        $Yoff = $self->{ grid }{ y }{ label }{ size };
+                    }
+                    if ( $self->{ grid }{ y }{ label }{ rotation } == 90 )
+                    {
+                        $Xoff = $self->{ grid }{ y }{ label }{ size } / 2;
+                        $Yoff = ( ( $len**$kerning ) * $self->{ grid }{ y }{ label }{ size } );
+                    }
+
+                    my @b = $frame->stringFT(
+                        $text_color,
+                        $self->{ grid }{ y }{ label }{ font },
+                        $self->{ grid }{ y }{ label }{ size },
+                        $radian,
+                        $self->{ border }->[0] + $val + $Xoff,
+                        $self->{ size }->[1] +
+                          $self->{ border }->[2] +
+                          $self->{ grid }{ debord }->[3] +
+                          $self->{ grid }{ y }{ label }{ space } +
+                          $Yoff,
+                        $self->{ grid }{ y }{ label }{ text }->[ $nbr - 1 ],
+#                         { resolution => "95,95" }
+                    );
+                    if ( exists $self->{ grid }{ y }{ label }{ surround } )
+                    {
+                        my $surround_color = $grid_color;
+                        if ( exists $self->{ grid }{ y }{ label }{ surround }{ color } )
+                        {
+                            ( $r, $g, $b, $a ) = unpack "a2 a2 a2 a2 ",
+                              _re_color( $self->{ grid }{ y }{ label }{ surround }{ color },
+                                $self->{ grid }{ y }{ label }{ color } );
+                            $surround_color =
+                              $frame->colorAllocateAlpha( hex $r, hex $g, hex $b, hex $a );
+
+                        }
+                        $frame->setThickness(
+                            $self->{ grid }{ y }{ label }{ surround }{ thickness } )
+                          if ( exists $self->{ grid }{ y }{ label }{ surround }{ thickness } );
+                        my $polyT = new GD::Polygon;
+                        $polyT->addPt( $b[0], $b[1] );
+                        $polyT->addPt( $b[2], $b[3] );
+                        $polyT->addPt( $b[4], $b[5] );
+                        $polyT->addPt( $b[6], $b[7] );
+                        $frame->openPolygon( $polyT, $surround_color );
+                    }
+                }
+
+                if ( defined $self->{ grid }{ y }{ label2 }{ text }->[ $nbr - 1 ] )
+                {
+                    my $text_color = $grid_color;
+                    if ( exists $self->{ grid }{ y }{ label2 }{ color } )
+                    {
+                        ( $r, $g, $b, $a ) = unpack "a2 a2 a2 a2 ",
+                          _re_color( $self->{ grid }{ y }{ label2 }{ color }, 'ffffffff' );
+                        $text_color = $frame->colorAllocateAlpha( hex $r, hex $g, hex $b, hex $a );
+                    }
+                    my $radian  = ( $self->{ grid }{ y }{ label2 }{ rotation } / 180 ) * PI || 0;
+                    my $kerning = $self->{ grid }{ y }{ label2 }{ kerning_correction }      || 0.91;
+                    my $cos     = cos( $radian );
+                    my $sin     = sin( $radian );
+                    my $Xoff;
+                    my $Yoff;
+                    my $len = length( $self->{ grid }{ y }{ label2 }{ text }->[ $nbr - 1 ] );
+
+                    unless ( $self->{ grid }{ y }{ label2 }{ rotation } )
+                    {
+                        $Xoff =
+                          -( ( $len**$kerning ) * $self->{ grid }{ y }{ label2 }{ size } / 2 );
+                    }
+                    if ( $self->{ grid }{ y }{ label2 }{ rotation } == 90 )
+                    {
+                        $Xoff = $self->{ grid }{ y }{ label2 }{ size } / 2;
+                    }
+
+                    my @b = $frame->stringFT(
+                        $text_color,
+                        $self->{ grid }{ y }{ label2 }{ font },
+                        $self->{ grid }{ y }{ label2 }{ size },
+                        $radian,
+                        $self->{ border }->[0] + $val + $Xoff,
+
+                        $self->{ border }->[2] -
+                          $self->{ grid }{ debord }->[2] -
+                          $self->{ grid }{ y }{ label2 }{ space } -
+                          $Yoff,
+                        $self->{ grid }{ y }{ label2 }{ text }->[ $nbr - 1 ],
+#                         { resolution => "95,95" }
+                    );
+                    if ( exists $self->{ grid }{ y }{ label2 }{ surround } )
+                    {
+                        my $surround_color = $grid_color;
+                        if ( exists $self->{ grid }{ y }{ label2 }{ surround }{ color } )
+                        {
+                            ( $r, $g, $b, $a ) = unpack "a2 a2 a2 a2 ",
+                              _re_color( $self->{ grid }{ y }{ label2 }{ surround }{ color },
+                                $self->{ grid }{ y }{ label2 }{ color } );
+                            $surround_color =
+                              $frame->colorAllocateAlpha( hex $r, hex $g, hex $b, hex $a );
+
+                        }
+                        $frame->setThickness(
+                            $self->{ grid }{ y }{ label2 }{ surround }{ thickness } )
+                          if ( exists $self->{ grid }{ y }{ label2 }{ surround }{ thickness } );
+                        my $polyT = new GD::Polygon;
+                        $polyT->addPt( $b[0], $b[1] );
+                        $polyT->addPt( $b[2], $b[3] );
+                        $polyT->addPt( $b[4], $b[5] );
+                        $polyT->addPt( $b[6], $b[7] );
+                        $frame->openPolygon( $polyT, $surround_color );
+                    }
+                    $frame->setThickness( 1 );
+                }
+            }
+        }
+        if ( exists $self->{ grid }{ x } )
+        {
+            $frame->setThickness( $self->{ grid }{ x }{ thickness } );
+            ( $r, $g, $b, $a ) = unpack "a2 a2 a2 a2 ",
+              _re_color( $self->{ grid }{ x }{ color }, 'ffffffff' );
+            my $grid_color = $frame->colorAllocateAlpha( hex $r, hex $g, hex $b, hex $a );
+            for my $nbr ( 1 .. ( $self->{ grid }{ x }{ number } ) )
+            {
+                my $val =
+                  ( $nbr - 1 ) *
+                  ( int( ( $self->{ size }->[1] ) / ( $self->{ grid }{ x }{ number } - 1 ) ) );
+                $frame->line(
+                    $self->{ border }->[0] - $self->{ grid }{ debord }->[0],
+                    $self->{ border }->[2] + 1 + $val,
+                    $self->{ border }->[0] + $self->{ size }->[0] + $self->{ grid }{ debord }->[1],
+                    $self->{ border }->[2] + 1 + $val,
+                    $grid_color
+                );
+                if ( defined $self->{ grid }{ x }{ label }{ text }->[ $nbr - 1 ] )
+                {
+                    my $text_color = $grid_color;
+                    if ( exists $self->{ grid }{ x }{ label }{ color } )
+                    {
+                        ( $r, $g, $b, $a ) = unpack "a2 a2 a2 a2 ",
+                          _re_color( $self->{ grid }{ x }{ label }{ color }, 'ffffffff' );
+                        $text_color = $frame->colorAllocateAlpha( hex $r, hex $g, hex $b, hex $a );
+                    }
+
+                    my $radian  = ( $self->{ grid }{ x }{ label }{ rotation } / 180 ) * PI || 0;
+                    my $kerning = $self->{ grid }{ x }{ label }{ kerning_correction }      || 0.91;
+                    my $cos     = cos( $radian );
+                    my $sin     = sin( $radian );
+                    my $len = length( $self->{ grid }{ x }{ label }{ text }->[ $nbr - 1 ] );
+                    my $Xoff;
+                    my $Yoff;
+
+                    if ( $self->{ grid }{ x }{ label }{ align } eq 'right' )
+                    {
+                        $Xoff = -( ( $len**$kerning ) * $self->{ grid }{ x }{ label }{ size } );
+                    }
+                    if ( $self->{ grid }{ x }{ label }{ rotation } )
+                    {
+                        $Xoff =
+                          ( $cos * ( $self->{ grid }{ x }{ label }{ size } ) ) -
+                          ( $cos * ( ( $len**$kerning ) * $self->{ grid }{ x }{ label }{ size } ) );
+
+                        $Yoff =
+                          ( $sin * ( ( $len**$kerning ) * $self->{ grid }{ x }{ label }{ size } ) )
+                          - ( $sin * $self->{ grid }{ x }{ label }{ size } );
+                    }
+                    $frame->stringFT(
+                        $text_color,
+                        $self->{ grid }{ x }{ label }{ font },
+                        $self->{ grid }{ x }{ label }{ size },
+                        $radian,
+                        $self->{ border }->[0] -
+                          $self->{ grid }{ debord }->[0] +
+                          $Xoff -
+                          $self->{ grid }{ x }{ label }{ space },
+                        $self->{ border }->[2] +
+                          ( $self->{ grid }{ x }{ label }{ size } / 2 ) +
+                          $val +
+                          $Yoff,
+                        $self->{ grid }{ x }{ label }{ text }->[ $nbr - 1 ]
+                    );
+                }
+
+                if ( defined $self->{ grid }{ x }{ label2 }{ text }->[ $nbr - 1 ] )
+                {
+                    my $text_color = $grid_color;
+                    if ( exists $self->{ grid }{ x }{ label2 }{ color } )
+                    {
+                        ( $r, $g, $b, $a ) = unpack "a2 a2 a2 a2 ",
+                          _re_color( $self->{ grid }{ x }{ label2 }{ color }, 'ffffffff' );
+                        $text_color = $frame->colorAllocateAlpha( hex $r, hex $g, hex $b, hex $a );
+                    }
+                    my $radian  = ( $self->{ grid }{ x }{ label2 }{ rotation } / 180 ) * PI || 0;
+                    my $kerning = $self->{ grid }{ x }{ label2 }{ kerning_correction }      || 0.91;
+                    my $cos     = cos( $radian );
+                    my $sin     = sin( $radian );
+                    my $len = length( $self->{ grid }{ x }{ label2 }{ text }->[ $nbr - 1 ] );
+                    my $Xoff;
+                    my $Yoff;
+
+                    if ( $self->{ grid }{ x }{ label2 }{ align } eq 'right' )
+                    {
+                        $Xoff = -( ( $len**$kerning ) * $self->{ grid }{ x }{ label2 }{ size } );
+                    }
+                    $frame->stringFT(
+                        $text_color,
+                        $self->{ grid }{ x }{ label2 }{ font },
+                        $self->{ grid }{ x }{ label2 }{ size },
+                        $radian,
+                        $self->{ border }->[0] +
+                          $self->{ grid }{ debord }->[1] +
+                          $Xoff +
+                          $self->{ grid }{ x }{ label2 }{ space } +
+                          $self->{ size }->[0],
+                        $self->{ border }->[2] +
+                          ( $self->{ grid }{ x }{ label2 }{ size } / 2 ) +
+                          $val +
+                          $Yoff,
+                        $self->{ grid }{ x }{ label2 }{ text }->[ $nbr - 1 ]
+                    );
+                }
+            }
+        }
+    }
+### end plot grid +label
+    $frame->setThickness( 1 );
+
+###  plot reticle +label
+    if ( exists $self->{ reticle } )
+    {
+        $frame->setThickness( $self->{ reticle }{ thickness } ) || 1;
+        ( $r, $g, $b, $a ) = unpack "a2 a2 a2 a2 ",
+          _re_color( $self->{ reticle }{ color }, '00000000' );
+        my $grid_color = $frame->colorAllocateAlpha( hex $r, hex $g, hex $b, hex $a );
+        my $angle_inc = ( PI ) / ( $self->{ reticle }{ number } / 2 );
+
+        for my $nbr ( 1 .. ( $self->{ reticle }{ number } ) )
+        {
+            my $polyline   = new GD::Polyline;
+            my $text_angle = 0;
+
+            my $angle = ( $angle_inc * ( -$nbr ) ) + ( PI / 2 );
+
+            $polyline->addPt(
+                ( $self->{ size }[0] / 2 ) + $self->{ border }[0],
+                $self->{ border }[2] + ( $self->{ size }[1] / 2 )
+            );
+            $polyline->addPt( ( $self->{ size }[0] / 2 ) + $self->{ border }[0],
+                $self->{ border }[2] + $self->{ size }[1] + $self->{ reticle }{ debord } );
+            $polyline->rotate(
+                $angle,
+                ( $self->{ size }[0] / 2 ) + $self->{ border }[0],
+                $self->{ border }[2] + ( $self->{ size }[1] / 2 )
+            );
+            $frame->polydraw( $polyline, $grid_color );
+
+            my $val =
+              ( $nbr - 1 ) *
+              ( int( ( $self->{ size }->[1] ) / ( $self->{ reticle }{ number } - 1 ) ) );
+            if ( defined $self->{ reticle }{ label_middle }{ text }->[ $nbr - 1 ] )
+            {
+                my $text_color = $grid_color;
+                if ( exists $self->{ reticle }{ label_middle }{ color } )
+                {
+                    ( $r, $g, $b, $a ) = unpack "a2 a2 a2 a2 ",
+                      _re_color( $self->{ reticle }{ label_middle }{ color }, 'ffffffff' );
+                    $text_color = $frame->colorAllocateAlpha( hex $r, hex $g, hex $b, hex $a );
+                }
+                my $kerning = $self->{ reticle }{ label_middle }{ kerning_correction } || 0.91;
+                my $len = length( $self->{ reticle }{ label_middle }{ text }->[ $nbr - 1 ] );
+                my $beta;
+                my $c;
+                my $pos_angle =
+                  ( $angle_inc * ( $nbr ) ) + PI - ( PI / $self->{ reticle }{ number } );
+                if ( exists $self->{ reticle }{ label_middle }{ rotate } )
+                {
+
+                    if ( $self->{ reticle }{ label_middle }{ rotate } eq 'perpendicular' )
+                    {
+                        $text_angle =
+                          ( PI / 2 ) +
+                          ( $angle_inc * ( -$nbr ) ) +
+                          ( PI / $self->{ reticle }{ number } );
+                        $c = (
+                            (
+                                (
+                                    ( $self->{ size }[1] / 2 ) +
+                                      $self->{ reticle }{ debord } +
+                                      $self->{ reticle }{ label_middle }{ space }
+                                )**2
+                            ) + (
+                                (
+                                    (
+                                        ( $len**$kerning ) *
+                                          $self->{ reticle }{ label_middle }{ size }
+                                    ) / 2
+                                )**2
+                            )
+                        )**.5;
+                        $beta = asin(
+                            (
+                                ( ( $len**$kerning ) * $self->{ reticle }{ label_middle }{ size } )
+                                / 2
+                            ) / $c
+                        );
+                    }
+                    else
+                    {
+                        $text_angle =
+                          ( $angle_inc * ( -$nbr ) ) + ( PI / $self->{ reticle }{ number } );
+                        $c = (
+                            (
+                                (
+                                    ( $self->{ size }[1] / 2 ) +
+                                      $self->{ reticle }{ debord } +
+                                      $self->{ reticle }{ label_middle }{ space }
+                                )**2
+                            ) + ( ( ( $self->{ reticle }{ label }{ size } ) / 2 )**2 )
+                        )**.5;
+                        $beta = asin( ( ( $self->{ reticle }{ label }{ size } ) / 2 ) / $c );
+                    }
+                }
+                my $cos = cos( $pos_angle + $beta );
+                my $sin = sin( $pos_angle + $beta );
+                my $Xoff =
+                  $cos *
+                  ( $self->{ reticle }{ label_middle }{ space } +
+                      ( $self->{ size }[1] / 2 ) +
+                      $self->{ reticle }{ debord } );
+                my $Yoff =
+                  $sin *
+                  ( $self->{ reticle }{ label_middle }{ space } +
+                      ( $self->{ size }[1] / 2 ) +
+                      $self->{ reticle }{ debord } );
+
+                if ( exists $self->{ reticle }{ label_middle }{ rotate } )
+                {
+                    if ( $self->{ reticle }{ label_middle }{ rotate } eq 'perpendicular' )
+                    {
+                        $Xoff =
+                          $cos *
+                          ( $self->{ reticle }{ label_middle }{ space } +
+                              $c +
+                              ( $self->{ reticle }{ label_middle }{ size } ) );
+                        $Yoff =
+                          $sin *
+                          ( $self->{ reticle }{ label_middle }{ space } +
+                              $c +
+                              ( $self->{ reticle }{ label_middle }{ size } ) );
+                    }
+                    else
+                    {
+                        $Xoff =
+                          $cos *
+                          ( $self->{ reticle }{ label_middle }{ size } +
+                              $self->{ reticle }{ label_middle }{ space } +
+                              ( $self->{ size }[1] / 2 ) +
+                              $self->{ reticle }{ debord } );
+                        $Yoff =
+                          $sin *
+                          ( $self->{ reticle }{ label_middle }{ size } +
+                              $self->{ reticle }{ label_middle }{ space } +
+                              ( $self->{ size }[1] / 2 ) +
+                              $self->{ reticle }{ debord } );
+                    }
+                }
+                $frame->stringFT(
+                    $text_color,
+                    $self->{ reticle }{ label_middle }{ font },
+                    $self->{ reticle }{ label_middle }{ size },
+                    $text_angle,
+                    ( $self->{ size }[0] / 2 ) + $self->{ border }[0] - $Xoff,
+                    $self->{ border }[2] + ( $self->{ size }[1] / 2 ) - $Yoff,
+                    $self->{ reticle }{ label_middle }{ text }->[ $nbr - 1 ]
+                );
+            }
+
+            my $text_angle = 0;
+            if ( defined $self->{ reticle }{ label }{ text }->[ $nbr - 1 ] )
+            {
+                my $text_color = $grid_color;
+                if ( exists $self->{ reticle }{ label }{ color } )
+                {
+                    ( $r, $g, $b, $a ) = unpack "a2 a2 a2 a2 ",
+                      _re_color( $self->{ reticle }{ label }{ color }, 'ffffffff' );
+                    $text_color = $frame->colorAllocateAlpha( hex $r, hex $g, hex $b, hex $a );
+                }
+                my $kerning = $self->{ reticle }{ label }{ kerning_correction } || 0.91;
+                my $len = length( $self->{ reticle }{ label }{ text }->[ $nbr - 1 ] );
+                my $beta;
+                my $c;
+                my $pos_angle =
+                  ( $angle_inc * ( $nbr ) ) + PI - ( 2 * PI / $self->{ reticle }{ number } );
+
+                if ( exists $self->{ reticle }{ label }{ rotate } )
+                {
+                    if ( $self->{ reticle }{ label }{ rotate } eq 'perpendicular' )
+                    {
+                        $text_angle =
+                          ( PI / 2 ) +
+                          ( $angle_inc * ( -$nbr ) ) +
+                          ( 2 * PI / $self->{ reticle }{ number } );
+                        $c = (
+                            (
+                                (
+                                    ( $self->{ size }[1] / 2 ) +
+                                      $self->{ reticle }{ debord } +
+                                      $self->{ reticle }{ label_middle }{ space }
+                                )**2
+                            ) + (
+                                (
+                                    ( ( $len**$kerning ) * $self->{ reticle }{ label }{ size } ) / 2
+                                )**2
+                            )
+                        )**.5;
+                        $beta = asin(
+                            ( ( ( $len**$kerning ) * $self->{ reticle }{ label }{ size } ) / 2 ) /
+                              $c );
+                    }
+                    else
+                    {
+                        $text_angle =
+                          ( $angle_inc * ( -$nbr ) ) + ( 2 * PI / $self->{ reticle }{ number } );
+                        $c = (
+                            (
+                                (
+                                    ( $self->{ size }[1] / 2 ) +
+                                      $self->{ reticle }{ debord } +
+                                      $self->{ reticle }{ label_middle }{ space }
+                                )**2
+                            ) + ( ( ( $self->{ reticle }{ label }{ size } ) / 2 )**2 )
+                        )**.5;
+                        $beta = asin( ( ( $self->{ reticle }{ label }{ size } ) / 2 ) / $c );
+                    }
+                }
+                my $cos = cos( $pos_angle + $beta );
+                my $sin = sin( $pos_angle + $beta );
+                my $Xoff =
+                  $cos *
+                  ( $self->{ reticle }{ label }{ space } +
+                      ( $self->{ size }[1] / 2 ) +
+                      $self->{ reticle }{ debord } );
+                my $Yoff =
+                  $sin *
+                  ( $self->{ reticle }{ label }{ space } +
+                      ( $self->{ size }[1] / 2 ) +
+                      $self->{ reticle }{ debord } );
+
+                if ( exists $self->{ reticle }{ label }{ rotate } )
+                {
+                    if ( $self->{ reticle }{ label }{ rotate } eq 'perpendicular' )
+                    {
+                        $Xoff =
+                          $cos *
+                          ( $self->{ reticle }{ label }{ space } +
+                              $c +
+                              ( $self->{ reticle }{ label }{ size } ) );
+                        $Yoff =
+                          $sin *
+                          ( $self->{ reticle }{ label }{ space } +
+                              $c +
+                              ( $self->{ reticle }{ label }{ size } ) );
+                    }
+                    else
+                    {
+                        $Xoff =
+                          $cos *
+                          ( $self->{ reticle }{ label }{ size } +
+                              $self->{ reticle }{ label }{ space } +
+                              ( $self->{ size }[1] / 2 ) +
+                              $self->{ reticle }{ debord } );
+                        $Yoff =
+                          $sin *
+                          ( $self->{ reticle }{ label }{ size } +
+                              $self->{ reticle }{ label }{ space } +
+                              ( $self->{ size }[1] / 2 ) +
+                              $self->{ reticle }{ debord } );
+                    }
+                }
+                $frame->stringFT(
+                    $text_color,
+                    $self->{ reticle }{ label }{ font },
+                    $self->{ reticle }{ label }{ size },
+                    $text_angle,
+                    ( $self->{ size }[0] / 2 ) + $self->{ border }[0] - $Xoff,
+                    $self->{ border }[2] + ( $self->{ size }[1] / 2 ) - $Yoff,
+                    $self->{ reticle }{ label }{ text }->[ $nbr - 1 ]
+                );
+            }
+        }
+    }
+### end plot reticle +label
+
+### plot frame around main chart
+    if ( exists $self->{ frame } )
+    {
+        my ( $r, $g, $b, $a ) = unpack "a2 a2 a2 a2 ", $self->{ frame }{ color };
+        my $frame_color = $frame->colorAllocateAlpha( hex $r, hex $g, hex $b, hex $a );
+
+        my $polyF = new GD::Polygon;
+        $frame->setThickness( $self->{ frame }{ thickness } );
+        $polyF->addPt( $self->{ border }->[0], $self->{ border }->[2] );
+        $polyF->addPt( $self->{ border }->[0], $self->{ border }->[2] + $self->{ size }->[1] + 1 );
+        $polyF->addPt(
+            $self->{ border }->[0] + $self->{ size }->[0],
+            $self->{ border }->[2] + $self->{ size }->[1] + 1
+        );
+        $polyF->addPt( $self->{ border }->[0] + $self->{ size }->[0], $self->{ border }->[2] );
+        $frame->openPolygon( $polyF, $frame_color );
+    }
+### end plot frame
+
+
+    $self->{ img } = $frame->png;
+    if ( $object )
+    {
+        $self->png_zEXt( $object );
+    }
+    return $self->{ img };
+}
+
+    sub log10 {
+        my $n = shift;
+        return log($n)/log(10);
+    }
+
+1;
+
+__END__
