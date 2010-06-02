@@ -13,6 +13,8 @@ METHODS
 
               %options could be defined like this:
 
+
+
               size => [ W, H ]                                                      # the size ( Width, Height ) in pixel of the real graph ( without border ) 
               bg_color => '0xfffff0'                                                #  an ARRAY with all possible section
               frame  => { color => '0xff00ff', thickness => 1 },                    # an optional frame around the real chart
@@ -24,6 +26,7 @@ METHODS
                         color  => '0xff00ff'                                        # color of the grid ( hex HTML value )
                         number => 5,                                                # number of grid division
                        thickness => 1,                                              # size of the division's line ( default = 1 )
+                       type => log,                                                 # create a log graduation (only one modules). If missing, normal graduation.
            
                         label  => {                                                 # an optional label on the left side
                             font  => '/usr/lib/cinelerra/fonts/trebucbi.ttf',       # a TrueType font to use
@@ -35,7 +38,42 @@ METHODS
                             rotation => 30,                                         # a rotation of the text in degree
                             kerning_correction => 0.85,                             # a kerning correcting to correct align of text when rotated ( default 0.91 ) 
                             surround => { color => '0x0000ff' , thickness => 1 },   # create a frame around the text with the specified color and thickness
-
+                        },
+            
+                    x_up      => {                                                  # vertical grid on the upper half of the graph ( to use with up_ graph)
+                        color  => '0xff00ff'                                        # color of the grid ( hex HTML value )
+                        number => 5,                                                # number of grid division
+                       thickness => 1,                                              # size of the division's line ( default = 1 )
+                       type => log,                                                 # create a log graduation (only one modules). If missing, normal graduation.
+           
+                        label  => {                                                 # an optional label on the left side
+                            font  => '/usr/lib/cinelerra/fonts/trebucbi.ttf',       # a TrueType font to use
+                            color => '0xff0000',                                    # the color of the label
+                            size  => 10,                                            # the size of the font
+                            text  => [ 'toto', undef, 'truc', 'bazar', 122 ],       # the text to render ( a undef element is not ploted, this allow to skip some label )
+                            space => 80,                                            # an extra space between the division and the text
+                            align    => 'right',                                    # align the text on the right ( = aligned on the division )
+                            rotation => 30,                                         # a rotation of the text in degree
+                            kerning_correction => 0.85,                             # a kerning correcting to correct align of text when rotated ( default 0.91 ) 
+                            surround => { color => '0x0000ff' , thickness => 1 },   # create a frame around the text with the specified color and thickness
+                        },
+            
+                    x_down      => {                                                # vertical grid on the lower half of the graph ( to use with down_ graph)
+                        color  => '0xff00ff'                                        # color of the grid ( hex HTML value )
+                        number => 5,                                                # number of grid division
+                       thickness => 1,                                              # size of the division's line ( default = 1 )
+                       type => log,                                                 # create a log graduation (only one modules). If missing, normal graduation.
+           
+                        label  => {                                                 # an optional label on the left side
+                            font  => '/usr/lib/cinelerra/fonts/trebucbi.ttf',       # a TrueType font to use
+                            color => '0xff0000',                                    # the color of the label
+                            size  => 10,                                            # the size of the font
+                            text  => [ 'toto', undef, 'truc', 'bazar', 122 ],       # the text to render ( a undef element is not ploted, this allow to skip some label )
+                            space => 80,                                            # an extra space between the division and the text
+                            align    => 'right',                                    # align the text on the right ( = aligned on the division )
+                            rotation => 30,                                         # a rotation of the text in degree
+                            kerning_correction => 0.85,                             # a kerning correcting to correct align of text when rotated ( default 0.91 ) 
+                            surround => { color => '0x0000ff' , thickness => 1 },   # create a frame around the text with the specified color and thickness
                         },
             
                         label2 => {                                                 # an optional label on the right side
@@ -77,6 +115,7 @@ METHODS
             #             }
                      }
 
+
                     reticle => {                                                    # when the Chart's type is of any circular shape, create polar division 
                     debord => 30,                                                   # the extra debord of the division
                     color => '0xff0000',                                            # the color of the division
@@ -114,6 +153,36 @@ METHODS
                       opacity => 100,                                               # when merge is missing, the overlay % of opacity copied on the chart
                       debord => 50,                                                 # the debord of the overlay. if missing use the full graph height and in polar ( pie ) use the smallest vertical border ( top or bottom ) 
                       },
+          
+                      glyph => {                                                    # add some ornament on the graph like line, text or polygon
+                    x     => 'active_min',                                          # the origin of the glyph, all other position are relative to this origin
+                    y     => 'active_max',                                          # either in pixel  x =>0 , y=> 0 = corner lower left
+                                                                                    # could be also active_min = the lower pixel of the main area
+                                                                                    # could be also active_max = the higher pixel of the main area       
+                    type  => 'filled',                                              # type of glyph ( missing = open polygyn, 'filled' = filled polygon, 'text' = text )
+                    color => '0x00FFff',                                            # color of the glyph
+                    data  => [                                                      # if one of the polygon type, the data is a set of point to plot ( value relative to the origin )
+                        [ 0,  0 ],
+                        [ 8,  10 ],
+                        [ 0,  10 ],
+                        [ 0,  10 + 20 ],
+                        [ 0,  10 ],
+                        [ -8, 10 ],
+                        [ 0,  0 ]
+                      ],
+          
+                    glyph => {      
+                       x     => 100,
+                    y     => 'active_max',
+                    type  => 'text',
+                    color => '0xff0000',
+                    size  => 12,                                                    # if the glyph's type is 'text', this is the font size 
+                    font  => '/usr/lib/cinelerra/fonts/lucon.ttf',                  # the TrueType font to use
+                    data  => [                                                      # the data set contain an array with all the text to plot followed by the relative position + the optional rotation
+                         [ 'hello world', 0, 0, 30 ],                               # 
+                         [ 'hello universe', 100, 0, 0 ], 
+                    ],
+                    },
                },
             },
 
@@ -156,6 +225,7 @@ METHODS
   data
             set the data to be plotted 
 
+
       $graph->data(
         {
               layer => 10,                  # the layer where the data is plotted ( the lowest number is the deepest layer ) If missing, the layer is created by call order of the method data 
@@ -167,26 +237,20 @@ METHODS
               scale => 1.1,                 # a scale on the value provided ( a number scale all the data value using the maximal value of the set time this number, 1.1 allow to always have a small extar gap and never reach to extremity of the graph area, 'auto' resize the graph using the maximal value   ) 
        }
     );
-    =cut
-
-    sub data { my $self = shift; my $object = shift; if ( $object ) { if (
-    exists $object->{ layer } ) { $self->{ data }[ $object->{ layer } ] =
-    clone( $object ); } else { push @{ $self->{ data } }, clone( $object );
-    } } return $self->{ data }; }
-
-    ########################################################################
-    ###
-
-    ########################################################################
-    ### ### method to put an avrlay on top of the graph ###
-    ########################################################################
-    ###
 
   overlay
-            method to put an avrlay on top of the graph ( to show alarm period ... )
+            method to put an overlay on top of the graph ( to show alarm period ... )
+
 
       use the same parameter as the new()
-      if the option is already present, overwrite this option
+      if the same layer is already present, overwrite this layer
+
+  overlay
+            method to put a glyph on the graph ( to show the latest data polled, or a trend value, ... )
+
+
+      use the same parameter as the new()
+      if the same layer is already present, overwrite this layer
 
   png_zEXt
             method to add a png data TAG 
@@ -199,7 +263,9 @@ METHODS
   render
             render the chart and return a png image
 
+
       my $img = $graph->render( \%tag )
+   
    
       the hash ref contain data to put in the PNG meta tag.
       the tools img_info.pl allow to see the result.
@@ -213,4 +279,48 @@ METHODS
         print $IMG $png_out;
         close $IMG;
     );
+
+color format
+      the color could be in the form of html hexa value '0xff00ff' of simple the hexa value 'ff00ff' all must be read as a string 0xff0000 = 16711680
+      it is also possible to use an array with multiple color to create a 'gdDtyled' color ( see GP.pm doc )
+      example:
+      color => [
+            '0xff0000',
+            '0xff0000',
+            '0xff0000',
+            '0xff0000',
+            '0x00ff00',
+            '0x00ff00',
+            '0x00ff00',
+            'gdTransparent',
+            'gdTransparent'
+            ],
+
+TODO
+    *   A reduce function to easily normalaize a set of data before plotting
+
+    *   A good test.pl for the install
+
+AUTHOR
+    Fabrice Dulaunoy <fabrice@dulaunoy.com>
+
+    june 2010
+
+LICENSE
+    Under the GNU GPL2
+
+        This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public 
+        License as published by the Free Software Foundation; either version 2 of the License, 
+        or (at your option) any later version.
+
+        This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; 
+        without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. 
+        See the GNU General Public License for more details.
+
+        You should have received a copy of the GNU General Public License along with this program; 
+        if not, write to the Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+
+        Proc::Forking    Copyright (C) 2010 DULAUNOY Fabrice  Proc::Forking comes with ABSOLUTELY NO WARRANTY; 
+        for details See: L<http://www.gnu.org/licenses/gpl.html> 
+        This is free software, and you are welcome to redistribute it under certain conditions;
 

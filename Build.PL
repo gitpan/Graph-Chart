@@ -23,7 +23,6 @@ my $build = Module::Build->new
 		'Clone' => 0,
 	       },
    recommends => {
-		  'Pod::Readme' => 0.04,
 		  'Data::Serializer' => 0,
 		  'Image::Info' => 0,
 		  'Data::Dumper' => 0,
