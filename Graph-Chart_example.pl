@@ -26,6 +26,7 @@ my $graph = Graph::Chart->new(
                 text  => [ 'toto', undef, 'truc', 'bazar', 122 ],
 # 		space => 80,
                 align    => 'right',
+		
                 rotation => 30,
             },
 
@@ -64,49 +65,49 @@ my $graph = Graph::Chart->new(
 #                 rotation => -30,
 #            },
 #        },
-#		    x_down      => {
+#         x_down      => {
 #            color  => '0xff00ff',
 #            number => 10,
 #	    type => 'log',
-#            label  => {
+#            label2  => {
 ##                font  => '/usr/lib/cinelerra/fonts/lucon.ttf',
 #                font  => '/usr/lib/cinelerra/fonts/trebucbi.ttf',
 #                color => '0xff0000',
 #                size  => 10,
-#                text  => [ 'toto', undef, 'truc', 'bazar', 122 ],
+#                text  => [ 'd_toto', undef, 'd_truc', 'd_bazar', 122 ],
 ## 		space => 80,
-#                align    => 'right',
+#                align    => 'left',
 #                rotation => 30,
 #            },
 #	    },
-        y => {
-            color     => '0x00fff0',
-            number    => 8,
-            thickness => 1,
-            label     => {
-#                 font  => '/usr/lib/cinelerra/fonts/lucon.ttf',
-                font               => '/usr/lib/cinelerra/fonts/trebuc.ttf',
-                kerning_correction => 0.85,
-                color              => '0xff0000',
-                size               => 12,
-                text               => [ 1000000, undef, '20', undef, 12256985, undef, 555 ],
-# 		space => 10,
-                rotation => 45,
-# 		surround => { color => '0x0000ff' , thickness => 1 },
-            },
-	     label2     => {
-#                 font  => '/usr/lib/cinelerra/fonts/lucon.ttf',
-		 font  => '/usr/lib/cinelerra/fonts/trebuc.ttf',
-		 kerning_correction => 0.85,
-                 color => '0xff0000',
-                 size  => 12,
-                 text  => [ 1000000, undef, '20', undef, 12256985, undef, 555 ],
- #		space => 10,
-                 rotation => 30,
-
- # 		surround => { color => '0x0000ff' , thickness => 1 },
-             }
-          }
+#        y => {
+#            color     => '0x00fff0',
+#            number    => 8,
+#            thickness => 1,
+#            label     => {
+##                 font  => '/usr/lib/cinelerra/fonts/lucon.ttf',
+#                font               => '/usr/lib/cinelerra/fonts/trebuc.ttf',
+#                kerning_correction => 0.85,
+#                color              => '0xff0000',
+#                size               => 12,
+#                text               => [ 1000000, undef, '20', undef, 12256985, undef, 555 ],
+## 		space => 10,
+#                rotation => 45,
+## 		surround => { color => '0x0000ff' , thickness => 1 },
+#            },
+#	     label2     => {
+##                 font  => '/usr/lib/cinelerra/fonts/lucon.ttf',
+#		 font  => '/usr/lib/cinelerra/fonts/trebuc.ttf',
+#		 kerning_correction => 0.85,
+#                 color => '0xff0000',
+#                 size  => 12,
+#                 text  => [ 1000000, undef, '20', undef, 12256985, undef, 555 ],
+# #		space => 10,
+#                 rotation => 30,
+#
+# # 		surround => { color => '0x0000ff' , thickness => 1 },
+#             }
+#          }
 
     },
 
@@ -274,7 +275,7 @@ my $res =$graph->data(
     {
         layer     => 4,
         set       => \@dot1,
-        type      => 'line',
+        type      => 'line_up',
         bar_size  => 1,
         color     => '0x00ff00',
 #		color => [
@@ -354,8 +355,8 @@ for ( 90 .. 180 )
 
 $graph->glyph(
     {
-        x => 0,
-        y => 0,
+        x => 100,
+        y => 100,
 
         color => '0x00ff00',
         data  => [

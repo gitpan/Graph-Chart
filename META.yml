@@ -1,6 +1,6 @@
 ---
 name: Graph-Chart
-version: 0.54
+version: 0.55
 author:
   - 'DULAUNOY Fabrice <fabrice at dulaunoy dot com>'
 abstract: Wraper arround GD to graph chart
@@ -22,7 +22,7 @@ configure_requires:
 provides:
   Graph::Chart:
     file: lib/Graph/Chart.pm
-    version: 0.54
+    version: 0.55
 generated_by: Module::Build version 0.340201
 meta-spec:
   url: http://module-build.sourceforge.net/META-spec-v1.4.html

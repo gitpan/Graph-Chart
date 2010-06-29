@@ -41,7 +41,7 @@ use constant PI => 4 * atan2( 1, 1 );
 # use constant NEPER => 2.718281828459045;
 # use constant LOG10 => 2.30258509299405;
 
-$VERSION = '0.54';
+$VERSION = '0.55';
 
 ###########################################################################
 
@@ -392,7 +392,7 @@ sub grid
 {
     my $self   = shift;
     my $object = shift;
-    
+
     if ( $object )
     {
         foreach my $item ( keys %{ $object } )
@@ -437,7 +437,7 @@ sub reticle
 {
     my $self   = shift;
     my $object = shift;
-    
+
     if ( $object )
     {
         foreach my $item ( keys %{ $object } )
@@ -481,7 +481,7 @@ sub frame
 {
     my $self   = shift;
     my $object = shift;
-    
+
     if ( $object )
     {
         $self->{ frame } = $object;
@@ -526,7 +526,7 @@ sub size
 {
     my $self   = shift;
     my $object = shift;
-    
+
     if ( $object )
     {
         $self->{ size } = $object;
@@ -589,7 +589,7 @@ sub data
 {
     my $self   = shift;
     my $object = shift;
-    
+
     if ( $object )
     {
         if ( exists $object->{ layer } )
@@ -624,7 +624,7 @@ sub overlay
 {
     my $self   = shift;
     my $object = shift;
-    
+
     if ( $object )
     {
         if ( exists $object->{ layer } )
@@ -658,7 +658,7 @@ sub glyph
 {
     my $self   = shift;
     my $object = shift;
-    
+
     if ( $object )
     {
         if ( exists $object->{ layer } )
@@ -705,7 +705,7 @@ sub png_zEXt
     my $pngsize;    # Total size of png
     my $text;       # 'string' of all tEXt chunks with CRC, etc.
     my $tchunk;     # content of text chunk
- 
+
     $tEXt{ data } = $tag;
 
     ( $sig, $ihdr, $png_out ) = unpack "a8 a25 a*", $self->{ img };
@@ -795,7 +795,7 @@ sub render
                 $frame_over->transparent( $bg_color_over );
                 $frame_over->interlaced( 'true' );
                 $frame_over->setThickness( 1 );
-                          
+
                 $col_graph = _color_allocate( $layer->{ color }, '00000000', $frame );
             }
             my $extra =
@@ -859,7 +859,7 @@ sub render
         my $last_pie;
         foreach my $layer ( @{ $self->{ data } } )
         {
-                    next unless ( ref $layer eq 'HASH' );
+            next unless ( ref $layer eq 'HASH' );
             my $max;
             my $min       = min( @{ $layer->{ set } } );
             my $scale     = 1;
@@ -867,6 +867,7 @@ sub render
             my $bar_size  = $layer->{ bar_size } || 1;
             if ( exists $layer->{ scale } && $layer->{ scale } eq 'auto' )
             {
+
                 if ( $layer->{ scale } =~ /^\d*\.*\d*$/ )
                 {
                     $pre_scale = $layer->{ scale };
@@ -874,7 +875,7 @@ sub render
                 $max = max( @{ $layer->{ set } } );
                 $scale = $self->{ size }->[1] / ( $pre_scale * $max );
             }
-            if ( exists  $layer->{ type } && $layer->{ type } =~ /(up|down)/ )
+            if ( exists $layer->{ type } && $layer->{ type } =~ /(up|down)/ )
             {
                 $scale /= 2;
             }
@@ -885,25 +886,27 @@ sub render
             if ( !exists $layer->{ type } || $layer->{ type } =~ /line|dot|bar/ )
             {
                 my $poly = new GD::Polygon;
-                my $dot = -1;
+                my $dot  = -1;
                 foreach my $raw_val ( @{ $layer->{ set } } )
                 {
                     $dot++;
                     next if ( !defined $raw_val );
-                    my $offset =  $layer->{ offset } || 0;
-                    my $val = ( $scale * $raw_val ) +$offset ;
-                    
+                    my $offset = $layer->{ offset } || 0;
+                    my $val = ( $scale * $raw_val ) + $offset;
+
                     if ( exists $layer->{ scale } && $layer->{ scale } eq 'log' )
                     {
+#                         $raw_val *=$scale;
                         $raw_val = $raw_val <= 0 ? $min : $raw_val;
                         next if ( $raw_val <= 0 );
                         $val = log10( $raw_val ) + $offset;
                     }
                     elsif ( exists $layer->{ scale } && $layer->{ scale } eq 'ln' )
                     {
+#                         $raw_val *=$scale;
                         $raw_val = $raw_val <= 0 ? $min : $raw_val;
                         next if ( $raw_val <= 0 );
-                        $val = log( $raw_val )+ $offset ;
+                        $val = log( $raw_val ) + $offset;
                     }
 
                     $val = $val > $self->{ size }->[1] ? $self->{ size }->[1] : $val;
@@ -916,11 +919,13 @@ sub render
                     if ( $layer->{ type } =~ /up/ )
                     {
                         $y_size /= 2;
+                        $val = $val > $y_size ? $y_size : $val;
                         $plot_val = $self->{ border }->[2] + $y_size - $val;
                     }
                     if ( $layer->{ type } =~ /down/ )
                     {
                         $y_size /= 2;
+                        $val = $val > $y_size ? $y_size : $val;
                         $plot_val = $self->{ border }->[2] + $y_size + $val;
                     }
                     $poly->addPt( $plot_dot, $plot_val ) if ( $layer->{ type } =~ /line/ );
@@ -1045,7 +1050,7 @@ sub render
                     {
                         $Xoff = $self->{ grid }{ y }{ label }{ size } / 2;
                         $Yoff = ( ( $len**$kerning ) * $self->{ grid }{ y }{ label }{ size } );
-                    }                  
+                    }
                     my @b = $frame->stringFT(
                         $text_color,
                         $self->{ grid }{ y }{ label }{ font },
@@ -1078,7 +1083,7 @@ sub render
                     }
                 }
 
-                if (  exists $self->{ grid }{ y }{ label }{ text } && defined $self->{ grid }{ y }{ label2 }{ text }->[ $nbr - 1 ] )
+                if ( exists $self->{ grid }{ y }{ label }{ text } && defined $self->{ grid }{ y }{ label2 }{ text }->[ $nbr - 1 ] )
                 {
                     my $text_color = $grid_color;
                     if ( exists $self->{ grid }{ y }{ label2 }{ color } )
@@ -1089,8 +1094,8 @@ sub render
                     my $kerning = $self->{ grid }{ y }{ label2 }{ kerning_correction }      || 0.91;
                     my $cos     = cos( $radian );
                     my $sin     = sin( $radian );
-                    my $Xoff =0;
-                    my $Yoff=0;
+                    my $Xoff    = 0;
+                    my $Yoff    = 0;
                     my $len = length( $self->{ grid }{ y }{ label2 }{ text }->[ $nbr - 1 ] );
 
                     unless ( $self->{ grid }{ y }{ label2 }{ rotation } )
@@ -1108,7 +1113,7 @@ sub render
                         $self->{ grid }{ y }{ label2 }{ size },
                         $radian,
                         $self->{ border }->[0] + $val + $Xoff,
-                        $self->{ border }->[2] - $self->{ grid }{ debord }->[2] - ( $self->{ grid }{ y }{ label2 }{ space }|| 0) - $Yoff,
+                        $self->{ border }->[2] - $self->{ grid }{ debord }->[2] - ( $self->{ grid }{ y }{ label2 }{ space } || 0 ) - $Yoff,
                         $self->{ grid }{ y }{ label2 }{ text }->[ $nbr - 1 ],
 #                         { resolution => "95,95" }
                     );
@@ -1134,17 +1139,19 @@ sub render
         }
         if ( exists $self->{ grid }{ x } )
         {
-	    if ( exists $self->{ grid }{ x }{ thickness } )
-	    {
-            $frame->setThickness( $self->{ grid }{ x }{ thickness } );
+            if ( exists $self->{ grid }{ x }{ thickness } )
+            {
+                $frame->setThickness( $self->{ grid }{ x }{ thickness } );
             }
             my $grid_color = _color_allocate( $self->{ grid }{ x }{ color }, 'ffffffff', $frame );
             for ( my $nbr = $self->{ grid }{ x }{ number } ; $nbr >= 1 ; $nbr-- )
             {
                 my $val = ( $nbr - 1 ) * ( int( ( $self->{ size }->[1] ) / ( $self->{ grid }{ x }{ number } - 1 ) ) );
                 my $text_indx = $self->{ grid }{ x }{ number } - $nbr;
+
                 if ( exists $self->{ grid }{ x }{ type } && $self->{ grid }{ x }{ type } eq 'log' )
                 {
+
                     $text_indx = $nbr - 1;
                     my $s = $self->{ size }->[1] / log( $self->{ grid }{ x }{ number } );
                     $val = $self->{ size }->[1] - ( log( $nbr ) * $s );
@@ -1176,15 +1183,7 @@ sub render
 
                         $Yoff = ( $sin * ( ( $len**$kerning ) * $self->{ grid }{ x }{ label }{ size } ) ) - ( $sin * $self->{ grid }{ x }{ label }{ size } );
                     }
-                    $frame->stringFT( 
-                    $text_color, 
-                    $self->{ grid }{ x }{ label }{ font }, 
-                    $self->{ grid }{ x }{ label }{ size }, 
-                    $radian,
-                    $self->{ border }->[0] - $self->{ grid }{ debord }->[0] + $Xoff - ( $self->{ grid }{ x }{ label }{ space }|| 0),
-                    $self->{ border }->[2] + ( $self->{ grid }{ x }{ label }{ size } / 2 ) + $val + $Yoff,
-                    $self->{ grid }{ x }{ label }{ text }->[$text_indx] 
-                    );
+                    $frame->stringFT( $text_color, $self->{ grid }{ x }{ label }{ font }, $self->{ grid }{ x }{ label }{ size }, $radian, $self->{ border }->[0] - $self->{ grid }{ debord }->[0] + $Xoff - ( $self->{ grid }{ x }{ label }{ space } || 0 ), $self->{ border }->[2] + ( $self->{ grid }{ x }{ label }{ size } / 2 ) + $val + $Yoff, $self->{ grid }{ x }{ label }{ text }->[$text_indx] );
                 }
 
                 if ( defined $self->{ grid }{ x }{ label2 }{ text }->[$text_indx] )
@@ -1198,9 +1197,9 @@ sub render
                     my $kerning = $self->{ grid }{ x }{ label2 }{ kerning_correction }      || 0.91;
                     my $cos     = cos( $radian );
                     my $sin     = sin( $radian );
-                    my $len = length( $self->{ grid }{ x }{ label2 }{ text }->[$text_indx] );
-                    my $Xoff=0;
-                    my $Yoff =0;
+                    my $len  = length( $self->{ grid }{ x }{ label2 }{ text }->[$text_indx] );
+                    my $Xoff = 0;
+                    my $Yoff = 0;
 
                     if ( $self->{ grid }{ x }{ label2 }{ align } eq 'right' )
                     {
@@ -1211,7 +1210,7 @@ sub render
                         $self->{ grid }{ x }{ label2 }{ font },
                         $self->{ grid }{ x }{ label2 }{ size },
                         $radian,
-                        $self->{ border }->[0] + $self->{ grid }{ debord }->[1] + $Xoff +  $self->{ grid }{ x }{ label2 }{ space } + $self->{ size }->[0],
+                        $self->{ border }->[0] + $self->{ grid }{ debord }->[1] + $Xoff + $self->{ grid }{ x }{ label2 }{ space } + $self->{ size }->[0],
                         $self->{ border }->[2] + ( $self->{ grid }{ x }{ label2 }{ size } / 2 ) + $val + $Yoff,
                         $self->{ grid }{ x }{ label2 }{ text }->[$text_indx]
                     );
@@ -1222,6 +1221,7 @@ sub render
         {
             $frame->setThickness( $self->{ grid }{ x_up }{ thickness } );
             my $grid_color = _color_allocate( $self->{ grid }{ x_up }{ color }, 'ffffffff', $frame );
+
             for ( my $nbr = $self->{ grid }{ x_up }{ number } ; $nbr >= 1 ; $nbr-- )
             {
                 my $val = ( $nbr - 1 ) * ( int( ( $self->{ size }->[1] ) / ( $self->{ grid }{ x_up }{ number } - 1 ) ) );
@@ -1232,6 +1232,12 @@ sub render
                     my $s = $self->{ size }->[1] / log( $self->{ grid }{ x_up }{ number } ) / 2;
                     $val = ( $self->{ size }->[1] / 2 ) - ( log( $nbr ) * $s );
                 }
+                else
+                {
+                    $val /= 2;
+#                 $val += $self->{ size }->[1] / 2;
+                }
+
                 $frame->line( $self->{ border }->[0] - $self->{ grid }{ debord }->[0], $self->{ border }->[2] + 1 + $val, $self->{ border }->[0] + $self->{ size }->[0] + $self->{ grid }{ debord }->[1], $self->{ border }->[2] + 1 + $val, $grid_color );
                 if ( defined $self->{ grid }{ x_up }{ label }{ text }->[$text_indx] )
                 {
@@ -1299,15 +1305,22 @@ sub render
             my $grid_color = _color_allocate( $self->{ grid }{ x_down }{ color }, 'ffffffff', $frame );
             for ( my $nbr = $self->{ grid }{ x_down }{ number } ; $nbr >= 1 ; $nbr-- )
             {
-                my $val = ( $nbr - 1 ) * ( int( ( $self->{ size }->[1] ) / ( $self->{ grid }{ x_down }{ number } - 1 ) ) );
+                my $val       = ( $nbr - 1 ) * ( int( ( $self->{ size }->[1] ) / ( $self->{ grid }{ x_down }{ number } - 1 ) ) );
                 my $text_indx = $self->{ grid }{ x_down }{ number } - $nbr;
+                my $x_offset  = 0;
                 if ( exists $self->{ grid }{ x_down }{ type } && $self->{ grid }{ x_down }{ type } eq 'log' )
                 {
                     $text_indx = $nbr - 1;
                     my $s = $self->{ size }->[1] / log( $self->{ grid }{ x_down }{ number } ) / 2;
                     $val = ( $self->{ size }->[1] / 2 ) + ( log( $nbr ) * $s );
                 }
-                $frame->line( $self->{ border }->[0] - $self->{ grid }{ debord }->[0], $self->{ border }->[2] + 1 + $val, $self->{ border }->[0] + $self->{ size }->[0] + $self->{ grid }{ debord }->[1], $self->{ border }->[2] + 1 + $val, $grid_color );
+                else
+                {
+                    $x_offset = $self->{ size }->[1] / 2;
+                    $val /= 2;
+                }
+                $frame->line( $self->{ border }->[0] - $self->{ grid }{ debord }->[0], $self->{ border }->[2] + 1 + $val + $x_offset, $self->{ border }->[0] + $self->{ size }->[0] + $self->{ grid }{ debord }->[1], $self->{ border }->[2] + 1 + $val + $x_offset, $grid_color );
+#                 $frame->line( $self->{ border }->[0] - $self->{ grid }{ debord }->[0], $self->{ border }->[2] + 1 + $val, $self->{ border }->[0] + $self->{ size }->[0] + $self->{ grid }{ debord }->[1], $self->{ border }->[2] + 1 + $val, $grid_color );
                 if ( defined $self->{ grid }{ x_down }{ label }{ text }->[$text_indx] )
                 {
                     my $text_color = $grid_color;
@@ -1334,13 +1347,22 @@ sub render
 
                         $Yoff = ( $sin * ( ( $len**$kerning ) * $self->{ grid }{ x_down }{ label }{ size } ) ) - ( $sin * $self->{ grid }{ x_down }{ label }{ size } );
                     }
+                    if ( exists $self->{ grid }{ x_down }{ type } && $self->{ grid }{ x_down }{ type } eq 'log' )
+                    {
+                        $x_offset = 0;
+                        $val *= -1;
+                    }
+                    else
+                    {
+                        $x_offset = $self->{ size }->[1];
+                    }
                     $frame->stringFT(
                         $text_color,
                         $self->{ grid }{ x_down }{ label }{ font },
                         $self->{ grid }{ x_down }{ label }{ size },
                         $radian,
                         $self->{ border }->[0] - $self->{ grid }{ debord }->[0] + $Xoff - $self->{ grid }{ x_down }{ label }{ space },
-                        $self->{ border }->[2] + ( $self->{ grid }{ x_down }{ label }{ size } / 2 ) + $val + $Yoff,
+                        $self->{ border }->[2] + ( $self->{ grid }{ x_down }{ label }{ size } / 2 ) - $val + $Yoff + $x_offset,
                         $self->{ grid }{ x_down }{ label }{ text }->[$text_indx]
                     );
                 }
@@ -1364,13 +1386,22 @@ sub render
                     {
                         $Xoff = -( ( $len**$kerning ) * $self->{ grid }{ x_down }{ label2 }{ size } );
                     }
+                    if ( exists $self->{ grid }{ x_down }{ type } && $self->{ grid }{ x_down }{ type } eq 'log' )
+                    {
+                        $x_offset = 0;
+                        $val *= -1;
+                    }
+                    else
+                    {
+                        $x_offset = $self->{ size }->[1];
+                    }
                     $frame->stringFT(
                         $text_color,
                         $self->{ grid }{ x_down }{ label2 }{ font },
                         $self->{ grid }{ x_down }{ label2 }{ size },
                         $radian,
                         $self->{ border }->[0] + $self->{ grid }{ debord }->[1] + $Xoff + $self->{ grid }{ x_down }{ label2 }{ space } + $self->{ size }->[0],
-                        $self->{ border }->[2] + ( $self->{ grid }{ x_down }{ label2 }{ size } / 2 ) + $val + $Yoff,
+                        $self->{ border }->[2] + ( $self->{ grid }{ x_down }{ label2 }{ size } / 2 ) - $val + $Yoff + $x_offset,
                         $self->{ grid }{ x_down }{ label2 }{ text }->[$text_indx]
                     );
                 }
@@ -1391,12 +1422,13 @@ sub render
         {
             my $polyline   = new GD::Polyline;
             my $text_angle = 0;
-            my $angle = ( $angle_inc * ( -$nbr ) ) + ( PI / 2 );
+            my $angle      = ( $angle_inc * ( -$nbr ) ) + ( PI / 2 );
             $polyline->addPt( ( $self->{ size }[0] / 2 ) + $self->{ border }[0], $self->{ border }[2] + ( $self->{ size }[1] / 2 ) );
             $polyline->addPt( ( $self->{ size }[0] / 2 ) + $self->{ border }[0], $self->{ border }[2] + $self->{ size }[1] + $self->{ reticle }{ debord } );
             $polyline->rotate( $angle, ( $self->{ size }[0] / 2 ) + $self->{ border }[0], $self->{ border }[2] + ( $self->{ size }[1] / 2 ) );
             $frame->polydraw( $polyline, $grid_color );
             my $val = ( $nbr - 1 ) * ( int( ( $self->{ size }->[1] ) / ( $self->{ reticle }{ number } - 1 ) ) );
+
             if ( defined $self->{ reticle }{ label_middle }{ text }->[ $nbr - 1 ] )
             {
                 my $text_color = $grid_color;
@@ -1411,6 +1443,7 @@ sub render
                 my $pos_angle = ( $angle_inc * ( $nbr ) ) + PI - ( PI / $self->{ reticle }{ number } );
                 if ( exists $self->{ reticle }{ label_middle }{ rotate } )
                 {
+
                     if ( $self->{ reticle }{ label_middle }{ rotate } eq 'perpendicular' )
                     {
                         $text_angle = ( PI / 2 ) + ( $angle_inc * ( -$nbr ) ) + ( PI / $self->{ reticle }{ number } );
@@ -1548,7 +1581,7 @@ sub render
             }
 
             my $glyph_color = _color_allocate( $item->{ color }, '00000000', $frame );
-            if (exists  $item->{ type } && $item->{ type } eq 'filled' )
+            if ( exists $item->{ type } && $item->{ type } eq 'filled' )
             {
                 my $polyG = new GD::Polygon;
                 foreach my $point ( @{ $item->{ data } } )
@@ -1559,7 +1592,7 @@ sub render
 
                 $frame->filledPolygon( $polyG, $glyph_color );
             }
-            elsif ( exists  $item->{ type } && $item->{ type } eq 'text' )
+            elsif ( exists $item->{ type } && $item->{ type } eq 'text' )
             {
                 foreach my $point ( @{ $item->{ data } } )
                 {
