@@ -1,29 +1,29 @@
 ---
-name: Graph-Chart
-version: 0.55
+abstract: 'Wraper arround GD to graph chart'
 author:
   - 'DULAUNOY Fabrice <fabrice at dulaunoy dot com>'
-abstract: Wraper arround GD to graph chart
+configure_requires:
+  Module::Build: 0.36
+generated_by: 'Module::Build version 0.3607'
 license: gpl2
-resources:
-  license: http://opensource.org/licenses/gpl-2.0.php
+meta-spec:
+  url: http://module-build.sourceforge.net/META-spec-v1.4.html
+  version: 1.4
+name: Graph-Chart
+provides:
+  Graph::Chart:
+    file: lib/Graph/Chart.pm
+    version: 0.56
+recommends:
+  Data::Dumper: 0
+  Data::Serializer: 0
+  Image::Info: 0
 requires:
   Clone: 0
   Compress::Zlib: 0
   GD: 0
   GD::Polyline: 0
   perl: 5.005_03
-recommends:
-  Data::Dumper: 0
-  Data::Serializer: 0
-  Image::Info: 0
-configure_requires:
-  Module::Build: 0.340201
-provides:
-  Graph::Chart:
-    file: lib/Graph/Chart.pm
-    version: 0.55
-generated_by: Module::Build version 0.340201
-meta-spec:
-  url: http://module-build.sourceforge.net/META-spec-v1.4.html
-  version: 1.4
+resources:
+  license: http://opensource.org/licenses/gpl-2.0.php
+version: 0.56

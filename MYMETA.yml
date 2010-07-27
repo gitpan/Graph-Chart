@@ -14,12 +14,11 @@ name: Graph-Chart
 provides:
   Graph::Chart:
     file: lib/Graph/Chart.pm
-    version: 0.52
+    version: 0.54
 recommends:
   Data::Dumper: 0
   Data::Serializer: 0
   Image::Info: 0
-  Pod::Readme: 0.04
 requires:
   Clone: 0
   Compress::Zlib: 0
@@ -28,4 +27,4 @@ requires:
   perl: 5.005_03
 resources:
   license: http://opensource.org/licenses/gpl-2.0.php
-version: 0.52
+version: 0.54

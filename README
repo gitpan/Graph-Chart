@@ -190,6 +190,20 @@ METHODS
 
             my $a = Graph::Chart->new( size => [ 800,400 ] );
 
+  reduce
+      get a set of data as input and return the data to fill the array with the plotting values
+      if more input data then the dot in the graph, process by averaging for a sample calculated on the target size
+      if lower input data then the dot in the graph, repeat the input data in the slice related
+  
+      my $dr= $graph->reduce( 
+        {
+              start => 5,                           # start to fill the destination array at that element ( optional, default = 0 )
+              end => 50,                            # fill the destination array until that element ( optional, default = plot width )
+              data => \@dot,                        # the input data set 
+              init => undef,                        # a default value for the destination set if not filled ( optional, default = undef )
+        }
+     );
+
   grid
             set the grid 
 

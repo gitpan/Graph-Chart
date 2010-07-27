@@ -34,6 +34,8 @@ use fields qw{ size type  };
 use GD;
 use GD::Polyline;
 use List::Util qw[min max sum];
+use POSIX;
+use List::Util qw(sum);
 
 use vars qw( $VERSION);
 
@@ -41,7 +43,7 @@ use constant PI => 4 * atan2( 1, 1 );
 # use constant NEPER => 2.718281828459045;
 # use constant LOG10 => 2.30258509299405;
 
-$VERSION = '0.55';
+$VERSION = '0.56';
 
 ###########################################################################
 
@@ -372,6 +374,73 @@ sub _re_color
         $col = $def;
     }
     return $col;
+}
+###########################################################################
+
+###########################################################################
+### 			method to reduce a set of data 		###
+### 			with specific polling time  			###
+### 			to fit the dot size				###
+###########################################################################
+
+=head2 reduce
+
+  get a set of data as input and return the data to fill the array with the plotting values
+  if more input data then the dot in the graph, process by averaging for a sample calculated on the target size
+  if lower input data then the dot in the graph, repeat the input data in the slice related
+  
+  my $dr= $graph->reduce( 
+    {
+	  start => 5,				# start to fill the destination array at that element ( optional, default = 0 )
+	  end => 50,				# fill the destination array until that element ( optional, default = plot width )
+	  data => \@dot,			# the input data set 
+	  init => undef,			# a default value for the destination set if not filled ( optional, default = undef )
+    }
+ );
+
+=cut	
+
+sub reduce
+{
+    my $self   = shift;
+    my $object = shift;
+
+    my $width_out = $self->{ size }->[0];
+    my $start = $object->{ start } || 0;
+
+    my $end = $object->{ end } || $width_out;
+    my @data_in = @{ $object->{ data } };
+    my @data_out;
+    $#data_out = $width_out;
+    my $width_in     = $end - $start + 1;
+    my $data_in_size = scalar @data_in;
+    my $data_dot     = ( scalar @data_in ) / $width_in;
+    my $data_dot_int = int( $data_dot + 0.5 );
+    my @chars;
+
+    if ( exists $object->{ init } )
+    {
+        @data_out = map( $object->{ init }, @data_out );
+    }
+    if ( $#data_out <= $#data_in )
+    {
+        for ( my $dot = $start ; $dot <= $end ; $dot++ )
+        {
+            my $s     = ($dot - $start ) * $data_dot;
+            my $e     = $s + $data_dot - 1;
+            my @slice = @data_in[ $s .. $e ];
+            $data_out[$dot] = sum( @slice ) / scalar( @slice );
+        }
+    }
+    else
+    {
+        for ( my $dot = 1 ; $dot <= $width_in ; $dot++ )
+        {
+            my $ind = ( int( ( $dot / ($width_in / $data_in_size)  ) ) );
+            $data_out[ $dot + $start - 1 ] =$ind > $#data_in ? $data_in[-1] : $data_in[$ind];
+        }
+    }
+    return \@data_out;
 }
 ###########################################################################
 
@@ -891,6 +960,7 @@ sub render
                 {
                     $dot++;
                     next if ( !defined $raw_val );
+                    last if ( $dot >= $self->{ size }->[0] );
                     my $offset = $layer->{ offset } || 0;
                     my $val = ( $scale * $raw_val ) + $offset;
 
@@ -1205,15 +1275,7 @@ sub render
                     {
                         $Xoff = -( ( $len**$kerning ) * $self->{ grid }{ x }{ label2 }{ size } );
                     }
-                    $frame->stringFT(
-                        $text_color,
-                        $self->{ grid }{ x }{ label2 }{ font },
-                        $self->{ grid }{ x }{ label2 }{ size },
-                        $radian,
-                        $self->{ border }->[0] + $self->{ grid }{ debord }->[1] + $Xoff + $self->{ grid }{ x }{ label2 }{ space } + $self->{ size }->[0],
-                        $self->{ border }->[2] + ( $self->{ grid }{ x }{ label2 }{ size } / 2 ) + $val + $Yoff,
-                        $self->{ grid }{ x }{ label2 }{ text }->[$text_indx]
-                    );
+                    $frame->stringFT( $text_color, $self->{ grid }{ x }{ label2 }{ font }, $self->{ grid }{ x }{ label2 }{ size }, $radian, $self->{ border }->[0] + $self->{ grid }{ debord }->[1] + $Xoff + $self->{ grid }{ x }{ label2 }{ space } + $self->{ size }->[0], $self->{ border }->[2] + ( $self->{ grid }{ x }{ label2 }{ size } / 2 ) + $val + $Yoff, $self->{ grid }{ x }{ label2 }{ text }->[$text_indx] );
                 }
             }
         }
@@ -1287,15 +1349,7 @@ sub render
                     {
                         $Xoff = -( ( $len**$kerning ) * $self->{ grid }{ x_up }{ label2 }{ size } );
                     }
-                    $frame->stringFT(
-                        $text_color,
-                        $self->{ grid }{ x_up }{ label2 }{ font },
-                        $self->{ grid }{ x_up }{ label2 }{ size },
-                        $radian,
-                        $self->{ border }->[0] + $self->{ grid }{ debord }->[1] + $Xoff + $self->{ grid }{ x_up }{ label2 }{ space } + $self->{ size }->[0],
-                        $self->{ border }->[2] + ( $self->{ grid }{ x_up }{ label2 }{ size } / 2 ) + $val + $Yoff,
-                        $self->{ grid }{ x_up }{ label2 }{ text }->[$text_indx]
-                    );
+                    $frame->stringFT( $text_color, $self->{ grid }{ x_up }{ label2 }{ font }, $self->{ grid }{ x_up }{ label2 }{ size }, $radian, $self->{ border }->[0] + $self->{ grid }{ debord }->[1] + $Xoff + $self->{ grid }{ x_up }{ label2 }{ space } + $self->{ size }->[0], $self->{ border }->[2] + ( $self->{ grid }{ x_up }{ label2 }{ size } / 2 ) + $val + $Yoff, $self->{ grid }{ x_up }{ label2 }{ text }->[$text_indx] );
                 }
             }
         }
@@ -1356,15 +1410,7 @@ sub render
                     {
                         $x_offset = $self->{ size }->[1];
                     }
-                    $frame->stringFT(
-                        $text_color,
-                        $self->{ grid }{ x_down }{ label }{ font },
-                        $self->{ grid }{ x_down }{ label }{ size },
-                        $radian,
-                        $self->{ border }->[0] - $self->{ grid }{ debord }->[0] + $Xoff - $self->{ grid }{ x_down }{ label }{ space },
-                        $self->{ border }->[2] + ( $self->{ grid }{ x_down }{ label }{ size } / 2 ) - $val + $Yoff + $x_offset,
-                        $self->{ grid }{ x_down }{ label }{ text }->[$text_indx]
-                    );
+                    $frame->stringFT( $text_color, $self->{ grid }{ x_down }{ label }{ font }, $self->{ grid }{ x_down }{ label }{ size }, $radian, $self->{ border }->[0] - $self->{ grid }{ debord }->[0] + $Xoff - $self->{ grid }{ x_down }{ label }{ space }, $self->{ border }->[2] + ( $self->{ grid }{ x_down }{ label }{ size } / 2 ) - $val + $Yoff + $x_offset, $self->{ grid }{ x_down }{ label }{ text }->[$text_indx] );
                 }
 
                 if ( defined $self->{ grid }{ x_down }{ label2 }{ text }->[$text_indx] )
@@ -1395,15 +1441,7 @@ sub render
                     {
                         $x_offset = $self->{ size }->[1];
                     }
-                    $frame->stringFT(
-                        $text_color,
-                        $self->{ grid }{ x_down }{ label2 }{ font },
-                        $self->{ grid }{ x_down }{ label2 }{ size },
-                        $radian,
-                        $self->{ border }->[0] + $self->{ grid }{ debord }->[1] + $Xoff + $self->{ grid }{ x_down }{ label2 }{ space } + $self->{ size }->[0],
-                        $self->{ border }->[2] + ( $self->{ grid }{ x_down }{ label2 }{ size } / 2 ) - $val + $Yoff + $x_offset,
-                        $self->{ grid }{ x_down }{ label2 }{ text }->[$text_indx]
-                    );
+                    $frame->stringFT( $text_color, $self->{ grid }{ x_down }{ label2 }{ font }, $self->{ grid }{ x_down }{ label2 }{ size }, $radian, $self->{ border }->[0] + $self->{ grid }{ debord }->[1] + $Xoff + $self->{ grid }{ x_down }{ label2 }{ space } + $self->{ size }->[0], $self->{ border }->[2] + ( $self->{ grid }{ x_down }{ label2 }{ size } / 2 ) - $val + $Yoff + $x_offset, $self->{ grid }{ x_down }{ label2 }{ text }->[$text_indx] );
                 }
             }
         }

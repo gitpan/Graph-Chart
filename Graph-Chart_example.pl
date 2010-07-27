@@ -26,7 +26,6 @@ my $graph = Graph::Chart->new(
                 text  => [ 'toto', undef, 'truc', 'bazar', 122 ],
 # 		space => 80,
                 align    => 'right',
-		
                 rotation => 30,
             },
 
@@ -65,49 +64,49 @@ my $graph = Graph::Chart->new(
 #                 rotation => -30,
 #            },
 #        },
-#         x_down      => {
+#		    x_down      => {
 #            color  => '0xff00ff',
 #            number => 10,
 #	    type => 'log',
-#            label2  => {
+#            label  => {
 ##                font  => '/usr/lib/cinelerra/fonts/lucon.ttf',
 #                font  => '/usr/lib/cinelerra/fonts/trebucbi.ttf',
 #                color => '0xff0000',
 #                size  => 10,
-#                text  => [ 'd_toto', undef, 'd_truc', 'd_bazar', 122 ],
+#                text  => [ 'toto', undef, 'truc', 'bazar', 122 ],
 ## 		space => 80,
-#                align    => 'left',
+#                align    => 'right',
 #                rotation => 30,
 #            },
 #	    },
-#        y => {
-#            color     => '0x00fff0',
-#            number    => 8,
-#            thickness => 1,
-#            label     => {
-##                 font  => '/usr/lib/cinelerra/fonts/lucon.ttf',
-#                font               => '/usr/lib/cinelerra/fonts/trebuc.ttf',
-#                kerning_correction => 0.85,
-#                color              => '0xff0000',
-#                size               => 12,
-#                text               => [ 1000000, undef, '20', undef, 12256985, undef, 555 ],
-## 		space => 10,
-#                rotation => 45,
-## 		surround => { color => '0x0000ff' , thickness => 1 },
-#            },
-#	     label2     => {
-##                 font  => '/usr/lib/cinelerra/fonts/lucon.ttf',
-#		 font  => '/usr/lib/cinelerra/fonts/trebuc.ttf',
-#		 kerning_correction => 0.85,
-#                 color => '0xff0000',
-#                 size  => 12,
-#                 text  => [ 1000000, undef, '20', undef, 12256985, undef, 555 ],
-# #		space => 10,
-#                 rotation => 30,
-#
-# # 		surround => { color => '0x0000ff' , thickness => 1 },
-#             }
-#          }
+        y => {
+            color     => '0x00fff0',
+            number    => 8,
+            thickness => 1,
+            label     => {
+#                 font  => '/usr/lib/cinelerra/fonts/lucon.ttf',
+                font               => '/usr/lib/cinelerra/fonts/trebuc.ttf',
+                kerning_correction => 0.85,
+                color              => '0xff0000',
+                size               => 12,
+                text               => [ 1000000, undef, '20', undef, 12256985, undef, 555 ],
+# 		space => 10,
+                rotation => 45,
+# 		surround => { color => '0x0000ff' , thickness => 1 },
+            },
+	     label2     => {
+#                 font  => '/usr/lib/cinelerra/fonts/lucon.ttf',
+		 font  => '/usr/lib/cinelerra/fonts/trebuc.ttf',
+		 kerning_correction => 0.85,
+                 color => '0xff0000',
+                 size  => 12,
+                 text  => [ 1000000, undef, '20', undef, 12256985, undef, 555 ],
+ #		space => 10,
+                 rotation => 30,
+
+ # 		surround => { color => '0x0000ff' , thickness => 1 },
+             }
+          }
 
     },
 
@@ -251,15 +250,15 @@ for my $ind ( 0 .. 400 )
 my @dot1;
 #$#dot1 = 19;
 
-for my $ind ( 0 .. 600 )
+for my $ind ( 0 .. 6000 )
 {
 
 #    $dot1[$ind] = rand( 200 );
 #$dot1[$ind] = $ind;
 #$dot1[$ind] = 50 +rand( 200 );
-#$dot1[$ind] =  (90 * ( sin( ( $ind / 30 ) * 3.14159)));
+$dot1[$ind] =  (90 * ( sin( ( $ind / 30 ) * 3.14159)));
 
-    $dot1[$ind] = exp( $ind );
+#    $dot1[$ind] = exp( $ind );
 #$dot1[$ind] = 10 **($ind);
 #$dot1[$ind] = $ind*$ind;
 
@@ -268,14 +267,21 @@ for my $ind ( 0 .. 600 )
 
 #@dot1=( 270 );
 
+my $dot_reduced = $graph->reduce( { data => \@dot1 ,
+start => 50,
+end => 380,
+init => 300 
+});
+
 #my $res =$graph->data;
 #say Dumper($res);
 
 my $res =$graph->data(
     {
         layer     => 4,
-        set       => \@dot1,
-        type      => 'line_up',
+#        set       => \@dot1,
+	set       => $dot_reduced ,
+        type      => 'line',
         bar_size  => 1,
         color     => '0x00ff00',
 #		color => [
@@ -294,7 +300,7 @@ my $res =$graph->data(
 #	scale => 1,
 #        scale => 1.1,
 #        scale => 'auto',
-        scale => 'log',
+#        scale => 'log',
 #	scale => 'ln',
     }
 );
@@ -355,8 +361,8 @@ for ( 90 .. 180 )
 
 $graph->glyph(
     {
-        x => 100,
-        y => 100,
+        x => 0,
+        y => 0,
 
         color => '0x00ff00',
         data  => [
