@@ -200,7 +200,10 @@ METHODS
               start => 5,                           # start to fill the destination array at that element ( optional, default = 0 )
               end => 50,                            # fill the destination array until that element ( optional, default = plot width )
               data => \@dot,                        # the input data set 
-              init => undef,                        # a default value for the destination set if not filled ( optional, default = undef )
+              init => 0,                            # a default value for the destination set if not filled ( optional, default = undef )
+              type => 'line'                        # type of interpollation if lower element in the input data set then in the target
+                                                    # default = step, the value is duplicate to fill-in all the destination dot for the slice
+                                                    # if line, the dot are filled with an increasing/decreasing step created by the to adjacent value/ by the number of dot in the slice 
         }
      );
 

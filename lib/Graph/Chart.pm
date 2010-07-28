@@ -35,7 +35,6 @@ use GD;
 use GD::Polyline;
 use List::Util qw[min max sum];
 use POSIX;
-use List::Util qw(sum);
 
 use vars qw( $VERSION);
 
@@ -43,7 +42,7 @@ use constant PI => 4 * atan2( 1, 1 );
 # use constant NEPER => 2.718281828459045;
 # use constant LOG10 => 2.30258509299405;
 
-$VERSION = '0.56';
+$VERSION = '0.57';
 
 ###########################################################################
 
@@ -394,7 +393,10 @@ sub _re_color
 	  start => 5,				# start to fill the destination array at that element ( optional, default = 0 )
 	  end => 50,				# fill the destination array until that element ( optional, default = plot width )
 	  data => \@dot,			# the input data set 
-	  init => undef,			# a default value for the destination set if not filled ( optional, default = undef )
+	  init => 0,				# a default value for the destination set if not filled ( optional, default = undef )
+	  type => 'line'			# type of interpollation if lower element in the input data set then in the target
+						# default = step, the value is duplicate to fill-in all the destination dot for the slice
+						# if line, the dot are filled with an increasing/decreasing step created by the to adjacent value/ by the number of dot in the slice 
     }
  );
 
@@ -426,7 +428,7 @@ sub reduce
     {
         for ( my $dot = $start ; $dot <= $end ; $dot++ )
         {
-            my $s     = ($dot - $start ) * $data_dot;
+            my $s     = ( $dot - $start ) * $data_dot;
             my $e     = $s + $data_dot - 1;
             my @slice = @data_in[ $s .. $e ];
             $data_out[$dot] = sum( @slice ) / scalar( @slice );
@@ -434,10 +436,40 @@ sub reduce
     }
     else
     {
-        for ( my $dot = 1 ; $dot <= $width_in ; $dot++ )
+        if ( exists $object->{ type } && $object->{ type } =~ /^line$/i )
         {
-            my $ind = ( int( ( $dot / ($width_in / $data_in_size)  ) ) );
-            $data_out[ $dot + $start - 1 ] =$ind > $#data_in ? $data_in[-1] : $data_in[$ind];
+            my $dot = 0;
+          W: while ( $dot <= $width_in )
+            {
+                my $ind = ( int( ( $dot / ( $width_in / $data_in_size ) ) ) );
+                my $val1 = $ind > $#data_in ? $data_in[-1] : $data_in[$ind];
+                my $val2 = ( $ind + 1 ) > $#data_in ? $data_in[-1] : $data_in[ ( $ind + 1 ) ];
+                my $inc = ( $val2 - $val1 ) / ( ( $width_in / $data_in_size )  );
+                my $val = $val1;
+                for ( 0 .. ( $width_in / $data_in_size ) )
+                {
+                    last W if ( $dot >= $width_in );
+                    $data_out[ $dot + $start ] = $val;
+                    $val += $inc;
+                    if ( $inc > 0 )
+                    {
+                    $val = $val > $val2 ? $val2 : $val;
+                    }
+                    else
+                    {
+                     $val = $val < $val2 ? $val2 : $val;
+                    }
+                    $dot++;
+                }
+            }
+        }
+        else
+        {
+            for ( my $dot = 1 ; $dot <= $width_in ; $dot++ )
+            {
+                my $ind = ( int( ( $dot / ( $width_in / $data_in_size ) ) ) );
+                $data_out[ $dot + $start - 1 ] = $ind > $#data_in ? $data_in[-1] : $data_in[$ind];
+            }
         }
     }
     return \@data_out;
@@ -1664,11 +1696,11 @@ sub render
     return $self->{ img };
 }
 
-sub log10
-{
-    my $n = shift;
-    return log( $n ) / log( 10 );
-}
+# sub log10
+# {
+#     my $n = shift;
+#     return log( $n ) / log( 10 );
+# }
 
 1;
 
