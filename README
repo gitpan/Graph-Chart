@@ -13,8 +13,6 @@ METHODS
 
               %options could be defined like this:
 
-
-
               size => [ W, H ]                                                      # the size ( Width, Height ) in pixel of the real graph ( without border ) 
               bg_color => '0xfffff0'                                                #  an ARRAY with all possible section
               frame  => { color => '0xff00ff', thickness => 1 },                    # an optional frame around the real chart
@@ -114,7 +112,6 @@ METHODS
                             surround => { color => '0x0000ff' , thickness => 1 },   # create a frame around the text with the specified color and thickness
             #             }
                      }
-
 
                     reticle => {                                                    # when the Chart's type is of any circular shape, create polar division 
                     debord => 30,                                                   # the extra debord of the division
@@ -242,7 +239,6 @@ METHODS
   data
             set the data to be plotted 
 
-
       $graph->data(
         {
               layer => 10,                  # the layer where the data is plotted ( the lowest number is the deepest layer ) If missing, the layer is created by call order of the method data 
@@ -251,20 +247,46 @@ METHODS
               bar_size => 1,                # if any type of bar used, this is an extra width of the bar created, if not defined, the bar width= 1 if set to 1 the size of the bar became 3 ( 1 before, 1 for the bar and one after )
               color => '0x0000ff',          # color of the plotted element
               thickness => 1,               # for any type of dot and line, the thiskness to used ( default = 1 )
-              scale => 1.1,                 # a scale on the value provided ( a number scale all the data value using the maximal value of the set time this number, 1.1 allow to always have a small extar gap and never reach to extremity of the graph area, 'auto' resize the graph using the maximal value   ) 
+              scale => '90%',               # a vertical scale on the value provided ( a number scale all the data value using the maximal value of the set to be this number( data could be outside of the graph)
+                                            # a percent value like, '90%' scale the graph to that percentage ( lower then 100% = some data are plotted outside the graph )
+                                            # missing or '100%' resize the graph using the maximal value 
+                                            # 'auto' or '110%' allow to always have a small extra gap and never reach to extremity of the graph area, 
        }
     );
+    =cut
+
+    sub data { my $self = shift; my $object = shift;
+
+        if ( $object )
+        {
+            if ( exists $object->{ layer } )
+            {
+                $self->{ data }[ $object->{ layer } ] = clone( $object );
+            }
+            else
+            {
+                push @{ $self->{ data } }, clone( $object );
+            }
+        }
+        return $self->{ data };
+    }
+
+    ########################################################################
+    ###
+
+    ########################################################################
+    ### ### method to put an overlay on top of the graph ###
+    ########################################################################
+    ###
 
   overlay
             method to put an overlay on top of the graph ( to show alarm period ... )
-
 
       use the same parameter as the new()
       if the same layer is already present, overwrite this layer
 
   overlay
             method to put a glyph on the graph ( to show the latest data polled, or a trend value, ... )
-
 
       use the same parameter as the new()
       if the same layer is already present, overwrite this layer
@@ -280,9 +302,7 @@ METHODS
   render
             render the chart and return a png image
 
-
       my $img = $graph->render( \%tag )
-   
    
       the hash ref contain data to put in the PNG meta tag.
       the tools img_info.pl allow to see the result.
@@ -312,10 +332,8 @@ color format
             'gdTransparent',
             'gdTransparent'
             ],
-
+        
 TODO
-    *   A reduce function to easily normalaize a set of data before plotting
-
     *   A good test.pl for the install
 
 AUTHOR
@@ -340,4 +358,4 @@ LICENSE
         Proc::Forking    Copyright (C) 2010 DULAUNOY Fabrice  Proc::Forking comes with ABSOLUTELY NO WARRANTY; 
         for details See: L<http://www.gnu.org/licenses/gpl.html> 
         This is free software, and you are welcome to redistribute it under certain conditions;
-
+   
