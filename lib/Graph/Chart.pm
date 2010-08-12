@@ -42,7 +42,7 @@ use constant PI => 4 * atan2( 1, 1 );
 # use constant NEPER => 2.718281828459045;
 # use constant LOG10 => 2.30258509299405;
 
-$VERSION = '0.59';
+$VERSION = '0.61';
 
 ###########################################################################
 
@@ -436,7 +436,13 @@ sub reduce
             my $s     = ( $dot - $start ) * $data_dot;
             my $e     = $s + $data_dot - 1;
             my @slice = @data_in[ $s .. $e ];
-            $data_out[$dot] = sum( @slice ) / scalar( @slice );
+            if ( scalar( @slice ) )
+            {
+                $data_out[$dot] = sum( @slice ) / scalar( @slice );
+            }else
+            {
+                $data_out[$dot] = 0;
+            }
             $STATS{ last } = $dot;
         }
     }
@@ -690,11 +696,13 @@ sub bg_color
 	  bar_size => 1,		# if any type of bar used, this is an extra width of the bar created, if not defined, the bar width= 1 if set to 1 the size of the bar became 3 ( 1 before, 1 for the bar and one after )
 	  color => '0x0000ff',		# color of the plotted element
 	  thickness => 1,		# for any type of dot and line, the thiskness to used ( default = 1 )
-	  scale => '90%',		# a vertical scale on the value provided ( a number scale all the data value using the maximal value of the set to be this number( data could be outside of the graph)
+	  scale => '90%',		# a vertical scale on the value provided ( a decimal number scale all the data value using the value ( data could be outside of the graph) 1 = 100%
 					# a percent value like, '90%' scale the graph to that percentage ( lower then 100% = some data are plotted outside the graph )
 					# missing or '100%' resize the graph using the maximal value 
 					# 'auto' or '110%' allow to always have a small extra gap and never reach to extremity of the graph area, 
-   }
+	  max => 3000,   		# a maximal value to use to create the graph ( if missing, max = maximal value from the data set )
+	  
+	  }
 );
 =cut
 
@@ -984,14 +992,18 @@ sub render
                 {
                     $pre_scale = $1 / 100;
                 }
-                elsif ( $layer->{ scale } =~ /^(\d*\.*\d*)$/ )
+                if ( $layer->{ scale } =~ /^(\d*\.*\d*)$/ )
                 {
-                    $max = $1;
+                    $pre_scale = $1 ;
                 }
                 elsif ( $layer->{ scale } eq 'auto' )
                 {
                     $pre_scale = 1.1;
                 }
+            }
+            if ( exists $layer->{ max } )
+            {
+	      $max =  $layer->{ max } ;
             }
             $scale = $self->{ size }->[1] / ( $pre_scale * $max );       
             if ( exists $layer->{ type } && $layer->{ type } =~ /(up|down)/ )

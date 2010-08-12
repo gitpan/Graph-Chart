@@ -13,7 +13,7 @@ name: Graph-Chart
 provides:
   Graph::Chart:
     file: lib/Graph/Chart.pm
-    version: 0.59
+    version: 0.61
 recommends:
   Data::Dumper: 0
   Data::Serializer: 0
@@ -26,4 +26,4 @@ requires:
   perl: 5.005_03
 resources:
   license: http://opensource.org/licenses/gpl-2.0.php
-version: 0.59
+version: 0.61
