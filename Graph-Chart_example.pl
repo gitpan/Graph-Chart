@@ -409,30 +409,32 @@ for ( 90 .. 180 )
 #}
 #);
 
+#$graph->glyph(
+#    {
+#        x => 0,
+#        y => 0,
+#
+#        color => '0x00ff00',
+#        data  => [
+#            [ 0,   0 ],
+#            [ 20,  4 ],
+#            [ 0,   4 ],
+#            [ 0,   4 + 20 ],
+#            [ 0,   4 ],
+#            [ -20, 4 ],
+#            [ 0,   0 ]
+#
+#          ]
+#
+#    }
+#);
+
+say "xmax=".$graph::x_active_max;
+
 $graph->glyph(
     {
-        x => 0,
-        y => 0,
-
-        color => '0x00ff00',
-        data  => [
-            [ 0,   0 ],
-            [ 20,  4 ],
-            [ 0,   4 ],
-            [ 0,   4 + 20 ],
-            [ 0,   4 ],
-            [ -20, 4 ],
-            [ 0,   0 ]
-
-          ]
-
-    }
-);
-
-$graph->glyph(
-    {
-        x     => 'active_min',
-        y     => 'active_max',
+        x     => $graph->active->{ x }{min} + 200,
+        y     => $graph->active->{ y }{max},
         type  => 'filled',
         color => '0x00FFff',
         data  => [
@@ -447,46 +449,46 @@ $graph->glyph(
     }
 );
 
-$graph->glyph(
-    {
-        x => 'active_min',
-        y => 'active_min',
-
-#        color     => '0xff0000',
-	color => [
-	'0xff0000',
-	'0xff0000',
-	'0xff0000',
-	'0xff0000',
-	'0x00ff00',
-	'0x00ff00',
-	'0x00ff00',
-	'gdTransparent',
-	'gdTransparent'
-	],
-        thickness => 3,
-        data      => [
-            [ -20,   100 ],
-            [ 820, 180 ],
-          ]
-    }
-);
-
-my $res = $graph->glyph(
-    {
-        x     => 100,
-        y     => 'active_max',
-        type  => 'text',
-        color => 0xff0000,
-        size  => 12,
-        font  => '/usr/lib/cinelerra/fonts/lucon.ttf',
-        data  => [ 
-	     [ 'hello world', 0, 0, 30 ], 
-	     [ 'hello universe', 100, 0 ], 
-	],
-
-    }
-);
+#$graph->glyph(
+#    {
+#        x => 'active_min',
+#        y => 'active_min',
+#
+##        color     => '0xff0000',
+#	color => [
+#	'0xff0000',
+#	'0xff0000',
+#	'0xff0000',
+#	'0xff0000',
+#	'0x00ff00',
+#	'0x00ff00',
+#	'0x00ff00',
+#	'gdTransparent',
+#	'gdTransparent'
+#	],
+#        thickness => 3,
+#        data      => [
+#            [ -20,   100 ],
+#            [ 820, 180 ],
+#          ]
+#    }
+#);
+#
+#my $res = $graph->glyph(
+#    {
+#        x     => 100,
+#        y     => 'active_max',
+#        type  => 'text',
+#        color => 0xff0000,
+#        size  => 12,
+#        font  => '/usr/lib/cinelerra/fonts/lucon.ttf',
+#        data  => [ 
+#	     [ 'hello world', 0, 0, 30 ], 
+#	     [ 'hello universe', 100, 0 ], 
+#	],
+#
+#    }
+#);
 
 
 

@@ -36,13 +36,13 @@ use GD::Polyline;
 use List::Util qw[min max sum];
 use POSIX;
 
-use vars qw( $VERSION);
+use vars qw( $VERSION );
 
 use constant PI => 4 * atan2( 1, 1 );
 # use constant NEPER => 2.718281828459045;
 # use constant LOG10 => 2.30258509299405;
 
-$VERSION = '0.62';
+$VERSION = '0.63';
 
 ###########################################################################
 
@@ -208,10 +208,9 @@ my $graph = Graph::Chart->new( \%options );
 	  },
 	  
 	  glyph => {							# add some ornament on the graph like line, text or polygon
-        x     => 'active_min',						# the origin of the glyph, all other position are relative to this origin
-	y     => 'active_max',						# either in pixel  x =>0 , y=> 0 = corner lower left
-									# could be also active_min = the lower pixel of the main area
- 									# could be also active_max = the higher pixel of the main area       
+        x     => $graph->{x}{min}+200,						# the origin of the glyph, all other position are relative to this origin
+	y     => $graph->{x}{max} ,						# either in pixel  x =>0 , y=> 0 = corner lower left
+									# see the active method
         type  => 'filled',						# type of glyph ( missing = open polygyn, 'filled' = filled polygon, 'text' = text )
         color => '0x00FFff',						# color of the glyph
         data  => [							# if one of the polygon type, the data is a set of point to plot ( value relative to the origin )
@@ -270,6 +269,7 @@ sub new
     }
 
     $self->{ border } = { @_ }->{ border } || [ 0, 0, 0, 0 ];
+
     if ( exists { @_ }->{ grid } )
     {
         $self->{ grid } = { @_ }->{ grid };
@@ -650,7 +650,34 @@ sub size
     }
     return $self->{ size };
 }
+###########################################################################
 
+###########################################################################
+### 			method to get the active border size 			###
+###########################################################################
+
+=head2 active
+
+	get the active border size
+
+ return a hash ref with 
+  $ref->{ x }{ max }  ==> left border of the main graph
+  $ref->{ x }{ min }  ==> right border of the main graph
+  $ref->{ y }{ max }  ==> upper border of the main graph
+  $ref->{ y }{ min }  ==> lower border of the main graph
+  
+=cut
+
+sub active
+{
+    my $self   = shift;
+    my %tmp;
+    $tmp{ x }{ max }=$self->{ border }->[0] + $self->{ size }->[0];
+    $tmp{ x }{ min }= $self->{ border }->[0];
+    $tmp{ y }{ max }=$self->{ border }->[3] + $self->{ size }->[1];
+    $tmp{ y }{ min }=$self->{ border }->[2];
+    return \%tmp;
+}
 ###########################################################################
 
 ###########################################################################
@@ -1657,32 +1684,9 @@ sub render
             my $X = 1;
             my $Y = 1;
 
-            if ( $item->{ x } eq 'active_max' )
-            {
-                $X += $self->{ border }->[0] + $self->{ size }->[0];
-            }
-            elsif ( $item->{ x } eq 'active_min' )
-            {
-                $X += $self->{ border }->[0];
-            }
-            else
-            {
-                $X += $item->{ x };
-            }
-
-            if ( $item->{ y } eq 'active_max' )
-            {
-                $Y += $self->{ border }->[3] + $self->{ size }->[1];
-            }
-            elsif ( $item->{ y } eq 'active_min' )
-            {
-                $Y += $self->{ border }->[2];
-            }
-            else
-            {
-                $Y += $item->{ y };
-            }
-
+            $X += $item->{ x }; 
+            $Y += $item->{ y };
+            
             my $glyph_color = _color_allocate( $item->{ color }, '00000000', $frame );
             if ( exists $item->{ type } && $item->{ type } eq 'filled' )
             {
