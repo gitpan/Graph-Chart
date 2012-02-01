@@ -25,12 +25,12 @@ B<Graph::Chart>
 use strict;
 
 use Carp;
-# use Data::Dumper;
+use Data::Dumper;
 
 use Clone qw(clone);
 use Compress::Zlib;
 use Data::Serializer;
-use fields qw{ size type  };
+# use fields qw{ size   };
 use GD;
 use GD::Polyline;
 use List::Util qw[min max sum];
@@ -42,7 +42,7 @@ use constant PI => 4 * atan2( 1, 1 );
 # use constant NEPER => 2.718281828459045;
 # use constant LOG10 => 2.30258509299405;
 
-$VERSION = '0.63';
+$VERSION = '0.65';
 
 ###########################################################################
 
@@ -252,11 +252,12 @@ my $a  = B<Graph::Chart>->new( size => [ 800,400 ]
 sub new
 {
     my ( $class ) = shift;
-    no strict "refs";
-    my $fields_ref = \%{ "${class}::FIELDS" };
-    my $self       = $fields_ref;
-    $self->{ size } = { @_ }->{ size };
+#     no strict "refs";
+#     my $fields_ref = \%{ "${class}::FIELDS" };
+#     my $self      = $fields_ref;
+    my $self;
 
+    $self->{ size } = { @_ }->{ size };
     $self->{ bg_color } = _re_color( { @_ }->{ bg_color }, 'ffffffff' );
     if ( exists { @_ }->{ frame } )
     {
@@ -315,7 +316,7 @@ sub new
     }
 
     bless( $self, $class );
-    return $self;
+     return $self;
 }
 
 sub _color_allocate
@@ -377,6 +378,57 @@ sub _re_color
 ###########################################################################
 
 ###########################################################################
+sub img_from
+{
+    my $self   = shift;
+    my $object = shift;
+
+    my $file = $object->{ file };
+    my $image;
+    {
+        local $/ = undef;
+        open IMG, $file;
+        binmode IMG;
+        $image = <IMG>;
+        close IMG;
+    }
+    my $image_gd  = GD::Image->new( $image );
+    my $image_png = $image_gd->png;
+    my @chunks;
+    my $chunks_nbr = 0;
+    substr( $image, 0, 33, '' );
+    while ( 1 )
+    {
+        my $slice = substr( $image, 0, 8, '' );
+        my ( $len, $type ) = unpack( "Na4", $slice );
+        last if $type eq 'IEND';
+        if ( $type eq 'tEXt' )
+        {
+            my $tEXt = substr( $image, 0, $len, '' );
+            my @all  = split( /\0/, $tEXt, 2 );
+            my $obj  = Data::Serializer->new();
+            my $tags = $obj->deserialize( $all[1] );
+            foreach my $tag ( keys %{ $tags } )
+            {
+                next if ( $tag eq 'Graph::Chart' );
+                $self->{ $tag } = $tags->{ $tag };
+            }
+            foreach my $tag ( keys %{ $tags->{ 'Graph::Chart' } } )
+            {
+                $self->{ $tag } = $tags->{ 'Graph::Chart' }{ $tag };
+            }
+            last;
+        }
+    }
+    $self->{ img } = $image_png;
+    if ( !exists $self->{ size_tot } )
+    {
+        ( $self->{ size_tot }->[0], $self->{ size_tot }->[1] ) = ( $image_gd->getBounds() )[ 0, 1 ];
+    }
+    $self;
+}
+
+###########################################################################
 ### 			method to reduce a set of data 		###
 ### 			with specific polling time  			###
 ### 			to fit the dot size				###
@@ -387,6 +439,8 @@ sub _re_color
   get a set of data as input and return the data to fill the array with the plotting values
   if more input data then the dot in the graph, process by averaging for a sample calculated on the target size
   if lower input data then the dot in the graph, repeat the input data in the slice related
+  if called in array context return a ref to the array with reduced data and a ref to a hash with the statistical data
+  in sclar context return a ref to the array with reduced data
   
   my $dr= $graph->reduce( 
     {
@@ -397,6 +451,8 @@ sub _re_color
 	  type => 'line'			# type of interpollation if lower element in the input data set then in the target
 						# default = step, the value is duplicate to fill-in all the destination dot for the slice
 						# if line, the dot are filled with an increasing/decreasing step created by the to adjacent value/ by the number of dot in the slice 
+						# if nrz = keep the previous value if now value == 0
+	 percentile =>  0.90                    # a percentile to use (default = 0.95 )
     }
  );
 
@@ -409,18 +465,26 @@ sub reduce
 
     my $width_out = $self->{ size }->[0];
     my $start = $object->{ start } || 0;
-
+    my $percentile_value = $object->{ percentile } || 0.95;
     my $end = $object->{ end } || $width_out;
     my @data_in = @{ $object->{ data } };
-    my %STATS;
-    $STATS{ min } = min @data_in;
+    my $data_in_size = scalar @data_in;
+    my @perc = sort { $a <=> $b }  @data_in[$start .. $end ] ;
+    my $prec_ind   = int( scalar( @perc )  * $percentile_value);
+           
+    my @data_out;
+    my %STATS;    
+   
+    $STATS{ percentile } = $perc[$prec_ind];
+    $STATS{ min } = min @perc;
     $STATS{ max } = max @data_in;
     $STATS{ sum } = sum @data_in;
-    $STATS{ avg } = $STATS{ sum } / scalar( @data_in );
-    my @data_out;
+
+    $STATS{ avg } = $STATS{ sum } / scalar( @perc );
+  
     $#data_out = $width_out;
     my $width_in     = $end - $start + 1;
-    my $data_in_size = scalar @data_in;
+    
     my $data_dot     = ( scalar @data_in ) / $width_in;
     my $data_dot_int = int( $data_dot + 0.5 );
     my @chars;
@@ -431,6 +495,7 @@ sub reduce
     }
     if ( $#data_out <= $#data_in )
     {
+        my $old_val = 0;
         for ( my $dot = $start ; $dot <= $end ; $dot++ )
         {
             my $s     = ( $dot - $start ) * $data_dot;
@@ -438,6 +503,20 @@ sub reduce
             my @slice = @data_in[ $s .. $e ];
             if ( scalar( @slice ) )
             {
+                if ( $object->{ type } =~ /^nrz$/i )
+                {
+                    foreach my $idx ( 0 .. $#slice )
+                    {
+                        if ( $slice[$idx] == 0 )
+                        {
+                            $slice[$idx] = $old_val;
+                        }
+                        else
+                        {
+                            $old_val = $slice[$idx];
+                        }
+                    }
+                }
                 $data_out[$dot] = sum( @slice ) / scalar( @slice );
             }
             else
@@ -445,26 +524,36 @@ sub reduce
                 $data_out[$dot] = 0;
             }
             $STATS{ last } = $dot;
+            $STATS{ last_val } = $data_in[ -1 ] ;
         }
     }
     else
     {
-        if ( exists $object->{ type } && $object->{ type } =~ /^line$/i )
+        if ( exists $object->{ type } && $object->{ type } =~ /^line|nrz$/i )
         {
-            my $dot = 0;
+            my $dot     = 0;
+            my $old_val = 0;
           W: while ( $dot <= $width_in )
             {
                 my $ind = ( int( ( $dot / ( $width_in / $data_in_size ) ) ) );
                 my $val1 = $ind > $#data_in ? $data_in[-1] : $data_in[$ind];
                 my $val2 = ( $ind + 1 ) > $#data_in ? $data_in[-1] : $data_in[ ( $ind + 1 ) ];
                 my $inc = ( $val2 - $val1 ) / ( ( $width_in / $data_in_size ) );
-                my $val = $val1;
+                my $val = $val1 || 0;
                 for ( 0 .. ( $width_in / $data_in_size ) )
                 {
                     $STATS{ last } = $dot;
                     last W if ( $dot >= $width_in );
-                    $data_out[ $dot + $start ] = $val;
-                    $val += $inc;
+                    if ( $object->{ type } =~ /^nrz$/i && ( !$val2 || !$val ) )
+                    {
+                        $data_out[ $dot + $start ] = $old_val;
+                    }
+                    else
+                    {
+                        $data_out[ $dot + $start ] = $val;
+                        $old_val = $val;
+                        $val += $inc;
+                    }
                     if ( $inc > 0 )
                     {
                         $val = $val > $val2 ? $val2 : $val;
@@ -473,6 +562,7 @@ sub reduce
                     {
                         $val = $val < $val2 ? $val2 : $val;
                     }
+
                     $dot++;
                 }
             }
@@ -516,7 +606,7 @@ sub grid
         {
             if ( ref( $object->{ $item } ) eq 'HASH' )
             {
-                foreach my $sub_item ( %{ $object->{ $item } } )
+                foreach my $sub_item ( keys %{ $object->{ $item } } )
                 {
                     $self->{ grid }{ $item }{ $sub_item } = $object->{ $item }{ $sub_item };
                 }
@@ -670,12 +760,12 @@ sub size
 
 sub active
 {
-    my $self   = shift;
+    my $self = shift;
     my %tmp;
-    $tmp{ x }{ max }=$self->{ border }->[0] + $self->{ size }->[0];
-    $tmp{ x }{ min }= $self->{ border }->[0];
-    $tmp{ y }{ max }=$self->{ border }->[3] + $self->{ size }->[1];
-    $tmp{ y }{ min }=$self->{ border }->[2];
+    $tmp{ x }{ max } = $self->{ border }->[0] + $self->{ size }->[0];
+    $tmp{ x }{ min } = $self->{ border }->[0];
+    $tmp{ y }{ max } = $self->{ border }->[3] + $self->{ size }->[1];
+    $tmp{ y }{ min } = $self->{ border }->[2];
     return \%tmp;
 }
 ###########################################################################
@@ -842,10 +932,21 @@ sub png_zEXt
 {
     my $self   = shift;
     my $object = shift;
+    $self->{ size_tot }->[0] = $self->{ size }->[0] + $self->{ border }->[0] + $self->{ border }->[1];
+    $self->{ size_tot }->[1] = $self->{ size }->[1] + $self->{ border }->[2] + $self->{ border }->[3];
+    my $tmp = clone( $self );
+#     delete $tmp->{ data };
+    foreach my $idx (0 .. scalar @{$tmp->{ data }})
+    {
+    
+     next if ( ! defined  $tmp->{ data }[ $idx ] );
+    delete $tmp->{ data }[ $idx]{ set};
+    }
+    delete $tmp->{ img };
 
     my $obj = Data::Serializer->new( 'compress' => 1 );
+    $object->{ 'Graph::Chart' } = $tmp;
     my $tag = $obj->serialize( $object );
-
     my $png_out;
     my $ihdr;       # IHDR chunk
     my %tEXt;       # tEXt chunks to insert
@@ -854,11 +955,8 @@ sub png_zEXt
     my $pngsize;    # Total size of png
     my $text;       # 'string' of all tEXt chunks with CRC, etc.
     my $tchunk;     # content of text chunk
-
     $tEXt{ data } = $tag;
-
     ( $sig, $ihdr, $png_out ) = unpack "a8 a25 a*", $self->{ img };
-
     $png_out =~ /(.*)(....PLTE.*)/s;
 
     my $old_tag = $1;
@@ -886,6 +984,20 @@ sub png_zEXt
 }
 
 ###########################################################################
+sub update
+{
+    my $self   = shift;
+    my $object = shift;
+#     carp Dumper($self);
+     my $image_gd  = GD::Image->new( $self->{img});
+#     carp $image_gd;
+#     
+#      $image->copy($sourceImage,$dstX,$dstY,  $srcX,$srcY,$width,$height)
+
+}
+
+
+
 
 ###########################################################################
 ### 			method to render the Chart 			###
@@ -920,6 +1032,7 @@ sub render
     my $object = shift;
 
     my $frame = new GD::Image( $self->{ size }->[0] + $self->{ border }->[0] + $self->{ border }->[1], $self->{ size }->[1] + $self->{ border }->[2] + $self->{ border }->[3] );
+    my $bg_color = _color_allocate( $self->{ bg_color }, 'ffffffff', $frame );
     my $bg_color = _color_allocate( $self->{ bg_color }, 'ffffffff', $frame );
     $frame->transparent( $bg_color );
     $frame->interlaced( 'true' );
@@ -1334,7 +1447,7 @@ sub render
                     my $kerning = $self->{ grid }{ x }{ label }{ kerning_correction }      || 0.91;
                     my $cos     = cos( $radian );
                     my $sin     = sin( $radian );
-                    my $len     = length( $self->{ grid }{ x }{ label }{ text }->[$text_indx] );
+                    my $len = length( $self->{ grid }{ x }{ label }{ text }->[$text_indx] );
                     my $Xoff;
                     my $Yoff;
 
@@ -1362,15 +1475,23 @@ sub render
                     my $kerning = $self->{ grid }{ x }{ label2 }{ kerning_correction }      || 0.91;
                     my $cos     = cos( $radian );
                     my $sin     = sin( $radian );
-                    my $len     = length( $self->{ grid }{ x }{ label2 }{ text }->[$text_indx] );
-                    my $Xoff    = 0;
-                    my $Yoff    = 0;
+                    my $len  = length( $self->{ grid }{ x }{ label2 }{ text }->[$text_indx] );
+                    my $Xoff = 0;
+                    my $Yoff = 0;
 
                     if ( $self->{ grid }{ x }{ label2 }{ align } eq 'right' )
                     {
                         $Xoff = -( ( $len**$kerning ) * $self->{ grid }{ x }{ label2 }{ size } );
                     }
-                    $frame->stringFT( $text_color, $self->{ grid }{ x }{ label2 }{ font }, $self->{ grid }{ x }{ label2 }{ size }, $radian, $self->{ border }->[0] + $self->{ grid }{ debord }->[1] + $Xoff + $self->{ grid }{ x }{ label2 }{ space } + $self->{ size }->[0], $self->{ border }->[2] + ( $self->{ grid }{ x }{ label2 }{ size } / 2 ) + $val + $Yoff, $self->{ grid }{ x }{ label2 }{ text }->[$text_indx] );
+                    $frame->stringFT(
+                        $text_color,
+                        $self->{ grid }{ x }{ label2 }{ font },
+                        $self->{ grid }{ x }{ label2 }{ size },
+                        $radian,
+                        $self->{ border }->[0] + $self->{ grid }{ debord }->[1] + $Xoff + $self->{ grid }{ x }{ label2 }{ space } + $self->{ size }->[0],
+                        $self->{ border }->[2] + ( $self->{ grid }{ x }{ label2 }{ size } / 2 ) + $val + $Yoff,
+                        $self->{ grid }{ x }{ label2 }{ text }->[$text_indx]
+                    );
                 }
             }
         }
@@ -1407,7 +1528,7 @@ sub render
                     my $kerning = $self->{ grid }{ x_up }{ label }{ kerning_correction }      || 0.91;
                     my $cos     = cos( $radian );
                     my $sin     = sin( $radian );
-                    my $len     = length( $self->{ grid }{ x_up }{ label }{ text }->[$text_indx] );
+                    my $len = length( $self->{ grid }{ x_up }{ label }{ text }->[$text_indx] );
                     my $Xoff;
                     my $Yoff;
 
@@ -1435,7 +1556,7 @@ sub render
                     my $kerning = $self->{ grid }{ x_up }{ label2 }{ kerning_correction }      || 0.91;
                     my $cos     = cos( $radian );
                     my $sin     = sin( $radian );
-                    my $len     = length( $self->{ grid }{ x_up }{ label2 }{ text }->[$text_indx] );
+                    my $len = length( $self->{ grid }{ x_up }{ label2 }{ text }->[$text_indx] );
                     my $Xoff;
                     my $Yoff;
 
@@ -1443,7 +1564,15 @@ sub render
                     {
                         $Xoff = -( ( $len**$kerning ) * $self->{ grid }{ x_up }{ label2 }{ size } );
                     }
-                    $frame->stringFT( $text_color, $self->{ grid }{ x_up }{ label2 }{ font }, $self->{ grid }{ x_up }{ label2 }{ size }, $radian, $self->{ border }->[0] + $self->{ grid }{ debord }->[1] + $Xoff + $self->{ grid }{ x_up }{ label2 }{ space } + $self->{ size }->[0], $self->{ border }->[2] + ( $self->{ grid }{ x_up }{ label2 }{ size } / 2 ) + $val + $Yoff, $self->{ grid }{ x_up }{ label2 }{ text }->[$text_indx] );
+                    $frame->stringFT(
+                        $text_color,
+                        $self->{ grid }{ x_up }{ label2 }{ font },
+                        $self->{ grid }{ x_up }{ label2 }{ size },
+                        $radian,
+                        $self->{ border }->[0] + $self->{ grid }{ debord }->[1] + $Xoff + $self->{ grid }{ x_up }{ label2 }{ space } + $self->{ size }->[0],
+                        $self->{ border }->[2] + ( $self->{ grid }{ x_up }{ label2 }{ size } / 2 ) + $val + $Yoff,
+                        $self->{ grid }{ x_up }{ label2 }{ text }->[$text_indx]
+                    );
                 }
             }
         }
@@ -1480,7 +1609,7 @@ sub render
                     my $kerning = $self->{ grid }{ x_down }{ label }{ kerning_correction }      || 0.91;
                     my $cos     = cos( $radian );
                     my $sin     = sin( $radian );
-                    my $len     = length( $self->{ grid }{ x_down }{ label }{ text }->[$text_indx] );
+                    my $len = length( $self->{ grid }{ x_down }{ label }{ text }->[$text_indx] );
                     my $Xoff;
                     my $Yoff;
 
@@ -1503,7 +1632,15 @@ sub render
                     {
                         $x_offset = $self->{ size }->[1];
                     }
-                    $frame->stringFT( $text_color, $self->{ grid }{ x_down }{ label }{ font }, $self->{ grid }{ x_down }{ label }{ size }, $radian, $self->{ border }->[0] - $self->{ grid }{ debord }->[0] + $Xoff - $self->{ grid }{ x_down }{ label }{ space }, $self->{ border }->[2] + ( $self->{ grid }{ x_down }{ label }{ size } / 2 ) - $val + $Yoff + $x_offset, $self->{ grid }{ x_down }{ label }{ text }->[$text_indx] );
+                    $frame->stringFT(
+                        $text_color,
+                        $self->{ grid }{ x_down }{ label }{ font },
+                        $self->{ grid }{ x_down }{ label }{ size },
+                        $radian,
+                        $self->{ border }->[0] - $self->{ grid }{ debord }->[0] + $Xoff - $self->{ grid }{ x_down }{ label }{ space },
+                        $self->{ border }->[2] + ( $self->{ grid }{ x_down }{ label }{ size } / 2 ) - $val + $Yoff + $x_offset,
+                        $self->{ grid }{ x_down }{ label }{ text }->[$text_indx]
+                    );
                 }
 
                 if ( defined $self->{ grid }{ x_down }{ label2 }{ text }->[$text_indx] )
@@ -1517,7 +1654,7 @@ sub render
                     my $kerning = $self->{ grid }{ x_down }{ label2 }{ kerning_correction }      || 0.91;
                     my $cos     = cos( $radian );
                     my $sin     = sin( $radian );
-                    my $len     = length( $self->{ grid }{ x_down }{ label2 }{ text }->[$text_indx] );
+                    my $len = length( $self->{ grid }{ x_down }{ label2 }{ text }->[$text_indx] );
                     my $Xoff;
                     my $Yoff;
 
@@ -1534,7 +1671,15 @@ sub render
                     {
                         $x_offset = $self->{ size }->[1];
                     }
-                    $frame->stringFT( $text_color, $self->{ grid }{ x_down }{ label2 }{ font }, $self->{ grid }{ x_down }{ label2 }{ size }, $radian, $self->{ border }->[0] + $self->{ grid }{ debord }->[1] + $Xoff + $self->{ grid }{ x_down }{ label2 }{ space } + $self->{ size }->[0], $self->{ border }->[2] + ( $self->{ grid }{ x_down }{ label2 }{ size } / 2 ) - $val + $Yoff + $x_offset, $self->{ grid }{ x_down }{ label2 }{ text }->[$text_indx] );
+                    $frame->stringFT(
+                        $text_color,
+                        $self->{ grid }{ x_down }{ label2 }{ font },
+                        $self->{ grid }{ x_down }{ label2 }{ size },
+                        $radian,
+                        $self->{ border }->[0] + $self->{ grid }{ debord }->[1] + $Xoff + $self->{ grid }{ x_down }{ label2 }{ space } + $self->{ size }->[0],
+                        $self->{ border }->[2] + ( $self->{ grid }{ x_down }{ label2 }{ size } / 2 ) - $val + $Yoff + $x_offset,
+                        $self->{ grid }{ x_down }{ label2 }{ text }->[$text_indx]
+                    );
                 }
             }
         }
@@ -1684,9 +1829,9 @@ sub render
             my $X = 1;
             my $Y = 1;
 
-            $X += $item->{ x }; 
+            $X += $item->{ x };
             $Y += $item->{ y };
-            
+
             my $glyph_color = _color_allocate( $item->{ color }, '00000000', $frame );
             if ( exists $item->{ type } && $item->{ type } eq 'filled' )
             {
@@ -1743,7 +1888,7 @@ sub render
 
 __END__
 
-=head1 color format
+=head1 COLOR format
 
   the color could be in the form of html hexa value '0xff00ff' of simple the hexa value 'ff00ff' all must be read as a string 0xff0000 = 16711680
   it is also possible to use an array with multiple color to create a 'gdDtyled' color ( see GP.pm doc )

@@ -13,8 +13,6 @@ METHODS
 
               %options could be defined like this:
 
-
-
               size => [ W, H ]                                                      # the size ( Width, Height ) in pixel of the real graph ( without border ) 
               bg_color => '0xfffff0'                                                #  an ARRAY with all possible section
               frame  => { color => '0xff00ff', thickness => 1 },                    # an optional frame around the real chart
@@ -115,7 +113,6 @@ METHODS
             #             }
                      }
 
-
                     reticle => {                                                    # when the Chart's type is of any circular shape, create polar division 
                     debord => 30,                                                   # the extra debord of the division
                     color => '0xff0000',                                            # the color of the division
@@ -193,6 +190,8 @@ METHODS
       get a set of data as input and return the data to fill the array with the plotting values
       if more input data then the dot in the graph, process by averaging for a sample calculated on the target size
       if lower input data then the dot in the graph, repeat the input data in the slice related
+      if called in array context return a ref to the array with reduced data and a ref to a hash with the statistical data
+      in sclar context return a ref to the array with reduced data
   
       my $dr= $graph->reduce( 
         {
@@ -203,6 +202,8 @@ METHODS
               type => 'line'                        # type of interpollation if lower element in the input data set then in the target
                                                     # default = step, the value is duplicate to fill-in all the destination dot for the slice
                                                     # if line, the dot are filled with an increasing/decreasing step created by the to adjacent value/ by the number of dot in the slice 
+                                                    # if nrz = keep the previous value if now value == 0
+             percentile =>  0.90                    # a percentile to use (default = 0.95 )
         }
      );
 
@@ -239,7 +240,7 @@ METHODS
       $ref->{ x }{ min }  ==> right border of the main graph
       $ref->{ y }{ max }  ==> upper border of the main graph
       $ref->{ y }{ min }  ==> lower border of the main graph
-
+  
   bg_color
             set the bg_color
             set the background color of the graph
@@ -249,7 +250,6 @@ METHODS
 
   data
             set the data to be plotted 
-
 
       $graph->data(
         {
@@ -267,17 +267,40 @@ METHODS
           
               }
     );
+    =cut
+
+    sub data { my $self = shift; my $object = shift;
+
+        if ( $object )
+        {
+            if ( exists $object->{ layer } )
+            {
+                $self->{ data }[ $object->{ layer } ] = clone( $object );
+            }
+            else
+            {
+                push @{ $self->{ data } }, clone( $object );
+            }
+        }
+        return $self->{ data };
+    }
+
+    ########################################################################
+    ###
+
+    ########################################################################
+    ### ### method to put an overlay on top of the graph ###
+    ########################################################################
+    ###
 
   overlay
             method to put an overlay on top of the graph ( to show alarm period ... )
-
 
       use the same parameter as the new()
       if the same layer is already present, overwrite this layer
 
   overlay
             method to put a glyph on the graph ( to show the latest data polled, or a trend value, ... )
-
 
       use the same parameter as the new()
       if the same layer is already present, overwrite this layer
@@ -293,9 +316,7 @@ METHODS
   render
             render the chart and return a png image
 
-
       my $img = $graph->render( \%tag )
-   
    
       the hash ref contain data to put in the PNG meta tag.
       the tools img_info.pl allow to see the result.
@@ -310,7 +331,7 @@ METHODS
         close $IMG;
     );
 
-color format
+COLOR format
       the color could be in the form of html hexa value '0xff00ff' of simple the hexa value 'ff00ff' all must be read as a string 0xff0000 = 16711680
       it is also possible to use an array with multiple color to create a 'gdDtyled' color ( see GP.pm doc )
       example:
@@ -325,7 +346,7 @@ color format
             'gdTransparent',
             'gdTransparent'
             ],
-
+        
 TODO
     *   A good test.pl for the install
 
@@ -351,4 +372,4 @@ LICENSE
         Proc::Forking    Copyright (C) 2010 DULAUNOY Fabrice  Proc::Forking comes with ABSOLUTELY NO WARRANTY; 
         for details See: L<http://www.gnu.org/licenses/gpl.html> 
         This is free software, and you are welcome to redistribute it under certain conditions;
-
+   

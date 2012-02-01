@@ -8,3 +8,4 @@ t/Graph-Chart.t
 Graph-Chart_example.pl
 img_info.pl
 META.yml
+META.json
